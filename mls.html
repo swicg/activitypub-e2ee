@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>Messaging Layer Security over ActivityPub</title>
+  <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+  <script class="remove">
+    // All config options at https://respec.org/docs/
+    var respecConfig = {
+      specStatus: "CG-DRAFT",
+      editors: [{ name: "Evan Prodromou", url: "https://socialwebfoundation.org/@evanp" }],
+      github: "swicg/activitypub-e2ee",
+      shortName: "apmls",
+      xref: ["web-platform", "activitystreams-vocabulary", "activitystreams-core", "activitypub"],
+      group: "socialcg",
+    };
+  </script>
+  <style>
+    table td,
+    table td * {
+      vertical-align: top;
+    }
+  </style>
+</head>
+
+<body>
+  <section id="abstract">
+    <p>
+      This specification documents the use of Messaging Layer Security (MLS) over the ActivityPub protocol. MLS is a protocol for end-to-end encryption of group messaging. ActivityPub is a federated social networking protocol. This specification describes how to use MLS to encrypt messages sent over ActivityPub.
+    </p>
+  </section>
+  <section id="sotd">
+    <p>This is required.</p>
+  </section>
+  <section class="informative">
+    <h2>Introduction</h2>
+    <p>ActivityPub supports a number of different addressing modes for content that an actor publishes -- either public content addressed to the <code>as:Public</code> collection, or semi-private content addressed to a collection such as the actor's followers. Content can also be addressed to other actors specifically; this provides a <em>direct messaging</em> feature in the protocol.</p>
+    <aside class="example">
+      <p>A <code>Note</code> object addressed from one actor to another.</p>
+      <pre class="json">
+      {
+        "@context":"https://www.w3.org/ns/activitystreams",
+        "id": "https://example.com/notes/1d310f1d",
+        "attributedTo": {
+          "id": "https://example.com/users/886b6cc4",
+          "type": "Person",
+          "name": "Evan Prodromou"
+        },
+        "to": {
+          "id": "https://social.example/users/421a67ae",
+          "type": "Person",
+          "name": "Alyssa P. Hacker",
+          "url": "https://social.example/profiles/421a67ae.html"
+        },
+        "type": "Note",
+        "content": "Hello &lt;a href='https://social.example/profiles/421a67ae.html'&gt;@alyssa&lt;/a&gt;!",
+        "published": "2024-11-22T12:34:56Z",
+        "tag": [
+          {
+            "type": "Mention",
+            "mediaType": "text/html",
+            "href": "https://social.example/profiles/421a67ae.html",
+            "name": "@alyssa"
+          }
+        ]
+      }
+      </pre>
+    </aside>
+    <p>User expectations are that direct messages are only readable by the addressed actor(s). The topology of the ActivityPub network, however, introduces several intermediate entities between the sender and the receiver. In particular, the sender's ActivityPub server and the receiver's ActivityPub server receive and store copies of the content. If these servers are operated by entities other than the actor, those entities can inspect the contents of the direct messages, pursuant to the privacy agreement between the user and their server operator.</p>
+    <p>The goals of this specification are to provide an additional level of privacy for the sender and receiver of the direct message, such that intermediaries cannot inspect the contents of the message. Called <dfn>end-to-end encrypted</dfn> or <dfn>E2EE</dfn> messaging</p>
+    <section>
+      <h3>User stories</h3>
+      <p>These are the motivating user stories for this specification.</p>
+      <ul>
+        <li><strong>As an ActivityPub user, I can send an encrypted DM to another user without anyone else being able to read it, so that our conversation is private.</strong> (Private messages)</li>
+        <li><strong>As an ActivityPub user, I can send an encrypted message to 2 or more people, so that we can have private group conversations.</strong> (Group messages)</li>
+        <li><strong>As an ActivityPub user, I can read my conversation history with another user, so that I can be reminded of what we said before.</strong> (Message history)</li>
+        <li><strong>As an ActivityPub user, I can attach an encrypted image, video or audio file to my encrypted DM, so that we can communicate privately with different media.</strong> (Attachments)</li>
+        <li><strong>As an ActivityPub user, I can start a conversation on my desktop computer and move over to my mobile device, so that I can have ubiquitous conversations.</strong> (Multiple clients)</li>
+        <li><strong>As an ActivityPub user, I can send an encrypted DM to someone using a different platform, so I don’t have to maintain different accounts for different platforms.</strong> (Cross-platform)</li>
+        <li><strong>As an ActivityPub user, I can block an encrypted DM from someone I don’t know, so I don’t get unsolicited messages.</strong> (DM only from people I know)</li>
+        <li><strong>As an ActivityPub user, I can send encrypted DMs to someone just by their Webfinger ID (username@domain), so I don’t need extra addressing to send DMs.</strong> (No external identity)</li>
+        <li><strong>As an ActivityPub user, I can send encrypted messages through a bridge to users on siloed social networks, so that we can communicate across protocols.</strong> (Bridgeable)</li>
+        <li><strong>As an ActivityPub user, I can delete an encrypted DM, so that I can take back something I wish I hadn’t said.</strong> (Deletable)</li>
+        <li><strong>As an ActivityPub user, I can confirm that the conversation I’m in is truly end-to-end encrypted and that no intermediate man-in-the-middle has access to the contents, so I and my correspondent can use untrusted servers.</strong> (Verifiable)</li>
+        <li><strong>As an ActivityPub user, I can move my DMs to another server, so I can maintain data portability.</strong> (Message portability)</li>
+        <li><strong>As an ActivityPub user, I can create an encrypted DM with a third-party client, so that I don’t have to depend on the server provider, and so that I know that the server provider isn’t snooping.</strong> (Third-party clients)</li>
+        <li><strong>As an ActivityPub user, I can revoke a device or client from my account, so I can stop any further DMs being viewable on the client if it has fallen into the wrong hands or if I decide they are not trustworthy.</strong> (Revoke a client)</li>
+        <li><strong>As an ActivityPub user, I want to use a web-based client, so that I don't have to install any software to send messages.</strong> (Web client)</li>
+        <li><strong>As an ActivityPub user, I don't want to be responsible for managing my encryption keys, because I don't have to do that with other E2EE messaging systems, and it's so easy to make mistakes.</strong> (no manual key management)</li>
+        <p>For clarity specific <strong>non-goals</strong> of this specification are listed below.</p>
+      </ul>
+    </section>
+    <section>
+      <h3>Non-goals</h3>
+      <p>For clarity, these goals are explicitly excluded from this specification. Implementers MAY use other techniques to ensure these goals.</p>
+      <ul>
+        <li>
+          <strong>Encrypted metadata</strong>. Addressing, identity, and typing metadata are required for delivery through the ActivityPub network.
+        </li>
+        <li>
+          <strong>Server-side content filtering</strong>. Because the contents are encrypted, servers cannot filter activities or objects based on their content. Clients may filter content after decryption.
+        </li>
+        <li>
+          <strong>Disappearing messages.</strong>. Some end-to-end encrypted messaging systems allow messages to be automatically deleted after a certain time. This is not implemented in the current specification, but the specification is not incompatible with such a feature.
+        </li>
+        <li>
+          <strong>Easy implementation</strong>. The specification used here is based on the MLS protocol, which is a complex protocol with many moving parts. Implementers should consider using libraries or platforms that support MLS to ensure proper implementation.
+        </li>
+        <li>
+          <strong>E2EE for arbitrary activities.</strong> This specification is targeted primarily to text-based messaging with or without attachments. Other activities, such as "Like" or "Follow", are not covered by this specification.
+        </li>
+        <li>
+          <strong>E2EE broadcast</strong>. This specification is targeted primarily to one-to-one or one-to-many messaging. Broadcast distribution, as is common on social networks, is not covered by this specification.
+        </li>
+      </ul>
+    </section>
+  </section>
+  <section id="context">
+    <h2>Context</h2>
+    <p>
+      The terms in this document are defined in a context document that can be used in [[JSON-LD]] documents. The
+      context document is available at <a
+        href="https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>.
+    </p>
+    <p>To use these terms, documents should include this context URL in the
+      <code>@context</code> property of the JSON-LD document.
+    </p>
+    <aside class="example">
+      <p>Example usage of the context.</p>
+      <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/evan",
+            "type": "Person",
+            "name": "Evan Prodromou",
+            "mlsKey": [
+              "https://example.com/keys/evan/client1",
+              "https://example.com/keys/evan/client2"
+            ]
+          }
+        </pre>
+    </aside>
+
+    <p>The context document defines a namespace prefix <code>mls</code> defined as <code>https://purl.archive.org/socialweb/mls#</code>.</p>
+    <section>
+      <h3>Version-stamped URLs</h3>
+
+      <p>To ease the use of
+        this context for implementers with strict versioning requirements,
+        additional URL aliases are provided with versions included. A <a href="https://semver.org/">semantic versioning</a>
+        strategy is used to convey the guarantees of the version number.
+      </p>
+
+      <table>
+        <tbody>
+          <tr>
+            <th>Version</th>
+            <th>URL</th>
+            <th>Notes</th>
+          </tr>
+          <tr>
+            <td>(latest)</td>
+            <td><a href="https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>
+            </td>
+            <td>The latest version of the context is always available at this URL. Most implementers can use this URL.</td>
+          </tr>
+          <tr>
+            <td>1.0.0</td>
+            <td><a
+                href="https://purl.archive.org/socialweb/mls/1.0.0">https://purl.archive.org/socialweb/mls/1.0.0</a>
+            </td>
+            <td>The exact version of the context document. The resource at this URL should be immutable. This URL is useful
+              for implementers that
+              need an exact, byte-wise replicable version of the document.
+            </td>
+          </tr>
+          <tr>
+            <td>1.0.x</td>
+            <td><a
+                href="https://purl.archive.org/socialweb/mls/1.0">https://purl.archive.org/socialweb/mls/1.0</a>
+            </td>
+            <td>Backwards-compatible fixes are possible, but no additional types or properties are defined. This is useful
+              for implementers
+              that use multiple extensions and want to ensure that no
+              conflicting terms are added.
+            </td>
+          </tr>
+          <tr>
+            <td>1.x.x</td>
+            <td><a
+                href="https://purl.archive.org/socialweb/mls/1">https://purl.archive.org/socialweb/mls/1</a>
+            </td>
+            <td>Backwards-compatible fixes, additional types and properties are possible. This is useful for implementers
+              that want to ensure
+              that the properties and types they use are stable and will not change, but do not need to avoid term
+              conflicts.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Using the version-stamped context URLs is similar to the unstamped URL.</p>
+
+      <aside class="example">
+        <p>Example usage of a version-stamped context URL.</p>
+        <pre class="json">
+                  {
+                    "@context": [
+                      "https://www.w3.org/ns/activitystreams",
+                      "https://purl.archive.org/socialweb/mls/1.0"
+                    ],
+                    "id": "https://example.com/users/evan",
+                    "type": "Person",
+                    "name": "Evan Prodromou",
+                    "mlsKey": [
+                      "https://example.com/keys/evan/client1",
+                      "https://example.com/keys/evan/client2"
+                    ]
+                  }
+                </pre>
+      </aside>
+
+      <p>If backwards-incompatible changes to this context are made in the future, a new major version (2.x.x) would be added and the existing 1.x.x URLs would continue to be provided.</p>
+
+    </section>
+  </section>
+  <section id="types">
+    <h2>Types</h2>
+    <p>This extension includes one object type, <a href="#Hashtag">Hashtag</a>.</p>
+    <section id="Hashtag" data-dfn-for="Hashtag">
+      <h3>Hashtag</h3>
+      <table>
+        <tbody>
+          <tr>
+            <td width="10%">
+              URI:
+            </td>
+            <td>
+              <code>https://www.w3.org/ns/activitystreams#Hashtag</code><br>
+              <code>as:Hashtag</code><br>
+              <code>Hashtag</code>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Notes:
+            </td>
+            <td>
+              <p>
+                A metadata tag used for casual categorization of content. Often, a hashtag is presented inline in
+              content prefixed with a hash symbol, "#". See <a
+                href="https://en.wikipedia.org/wiki/Hashtag">https://en.wikipedia.org/wiki/Hashtag</a>. Examples are
+              shown in the [[activitystreams-vocabulary]] specification under
+              <a href="https://www.w3.org/TR/activitystreams-vocabulary/#microsyntaxes">Mentions, Tags, and Other Common
+                Social Microsyntaxes</a> implementation notes, without a type for tag object.
+                Original discussion in ActivityPub issue #<a href="https://github.com/w3c/activitypub/issues/235">235</a>.
+              </p>
+              <p>
+                The <code>name</code> property MAY include an initial hash character "#".
+              </p>
+              <p>
+                Some processors treat Hashtag objects with the same <code>name</code> as equivalent, with or without the initial hash character. For example, an aggregator service may list all objects with <code>tag</code> items of type <code>Hashtag</code> with the same <code>name</code> together, even if their <code>href</code> values differ.
+              </p>
+              <p>
+                Despite the name, the Hashtag type MAY be used for metadata tags that are not implemented with inline microsyntax. See <a href="https://en.wikipedia.org/wiki/Tag_(metadata)">https://en.wikipedia.org/wiki/Tag_(metadata)</a>.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td>Extends:</td>
+            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#link">Link</a></code></td>
+          </tr>
+          <tr>
+            <td>Properties:</td>
+            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#link">Link</a></code>.</td>
+          </tr>
+        </tbody>
+      </table>
+      <aside class="example">
+        <p>A <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-note">Note</a> with a <code>Hashtag</code> in its <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-tag">tag</a> array.</p>
+        <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/notes/1",
+            "type": "Note",
+            "attributedTo": "https://example.com/users/john",
+            "summary": "A thank-you note",
+            "content": "&lt;a href='https://example.org/tags/givingthanks'&gt;#givingthanks&lt;/a&gt;",
+            "tag": [
+              {
+                "type": "Hashtag",
+                "href": "https://example.org/tags/givingthanks",
+                "name": "#givingthanks"
+              }
+            ]
+          }
+      </aside>
+      <aside class="example">
+        <p>A collection of <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-image">Image</a> objects with <code>Hashtag</code> objects in their <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-tag">tag</a> array. The images are grouped together
+        because the hashtag <code>name</code> values are equivalent.</p>
+        <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://photos.example/collections/tag/givingthanks",
+            "attributedTo": "https://photos.example/editors/asjt",
+            "to": "as:Public",
+            "type": "Collection",
+            "summary": "Images tagged with #eclipse2024",
+            "items": [
+              {
+                "id": "https://example.com/images/1",
+                "type": "Image",
+                "name": "Fred and Ethel watching the eclipse",
+                "attributedTo": "https://example.com/users/ethel",
+                "to": "as:Public",
+                "url": "https://example.com/files/image1.png",
+                "tag": [
+                  {
+                    "type": "Hashtag",
+                    "href": "https://example.com/tags/eclipse2024",
+                    "name": "eclipse2024"
+                  }
+                ]
+              },
+              {
+                "id": "https://social.example/users/nasa/images/2e4f8e6c.jsonld",
+                "type": "Image",
+                "url": "https://social.example/uploads/2e4f8e6c.png",
+                "attributedTo": "https://social.example/users/nasa",
+                "to": "as:Public",
+                "name": "Eclipse from the ISS",
+                "summary": "&lt;a href='https://tags.example/eclipse2024'&gt;#eclipse2024&lt;/a&gt;",
+                "tag": [
+                  {
+                    "type": "Hashtag",
+                    "href": "https://tags.example/eclipse2024",
+                    "name": "#eclipse2024"
+                  }
+                ]
+              }
+            ]
+          }
+      </aside>
+    </section>
+  </section>
+  <section id="properties">
+      <h2>Properties</h2>
+      <p>This extension includes three properties: <a href="#manuallyApprovesFollowers">manuallyApprovesFollowers</a>, <a href="#movedTo">movedTo</a>, and <a href="#sensitive">sensitive</a>.</p>
+      <section id="manuallyApprovesFollowers" data-dfn-for="manuallyApprovesFollowers">
+        <h3>manuallyApprovesFollowers</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">
+                URI:
+              </td>
+              <td>
+                <code>https://www.w3.org/ns/activitystreams#manuallyApprovesFollowers</code><br>
+                <code>as:manuallyApprovesFollowers</code><br>
+                <code>manuallyApprovesFollowers</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Notes:
+              </td>
+              <td>
+                When *true*, conveys that for this actor, follow requests are not usually automatically approved, but instead are examined by a person who may accept or reject the request, at some time in the future.  Setting of FALSE conveys no information and may be ignored. This information is typically used to affect display of accounts, such as showing an account as private or locked.
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td><code>Object</code> (an ActivityPub <a href="https://www.w3.org/TR/activitypub/#actors">Actor</a>)</td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>Boolean</code></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An ActivityPub actor with the <code>manuallyApprovesFollowers</code> flag set to true.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa",
+            "type": "Person",
+            "name": "Alyssa P. Hacker",
+            "inbox": "https://example.com/users/alyssa/inbox",
+            "outbox": "https://example.com/users/alyssa/outbox",
+            "followers": "https://example.com/users/alyssa/followers",
+            "following": "https://example.com/users/alyssa/following",
+            "liked": "https://example.com/users/alyssa/liked",
+            "manuallyApprovesFollowers": true
+          }
+          </pre>
+        </aside>
+      </section>
+      <section id="movedTo" data-dfn-for="movedTo">
+        <h3>movedTo</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">
+                URI:
+              </td>
+              <td>
+                <code>https://www.w3.org/ns/activitystreams#movedTo</code><br>
+                <code>as:movedTo</code><br>
+                <code>movedTo</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Notes:
+              </td>
+              <td>
+                Signifies that an actor has been moved to a different ID. Used in Mastodon-style data portability with the <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-move">Move</a> activity; see <a href="https://swicg.github.io/activitypub-data-portability/#move-action">ActivityPub Data Portability/Move Action</a> for more details.
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td><code>Object</code> (an ActivityPub <a href="https://www.w3.org/TR/activitypub/#actors">Actor</a>)</td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>Object</code> (an ActivityPub <a href="https://www.w3.org/TR/activitypub/#actors">Actor</a>)</td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An ActivityPub actor with the <code>movedTo</code> property set to a new ID.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa",
+            "type": "Person",
+            "name": "Alyssa P. Hacker",
+            "inbox": "https://example.com/users/alyssa/inbox",
+            "outbox": "https://example.com/users/alyssa/outbox",
+            "followers": "https://example.com/users/alyssa/followers",
+            "following": "https://example.com/users/alyssa/following",
+            "liked": "https://example.com/users/alyssa/liked",
+            "movedTo": "https://example.org/users/alyssa2"
+          }
+          </pre>
+        </aside>
+      </section>
+      <section id="sensitive" data-dfn-for="sensitive">
+        <h3>sensitive</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">
+                URI:
+              </td>
+              <td>
+                <code>https://www.w3.org/ns/activitystreams#sensitive</code><br>
+                <code>as:sensitive</code><br>
+                <code>sensitive</code>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Notes:
+              </td>
+              <td>
+                The <code>sensitive</code> property (a boolean) on an object indicates that some users may wish to apply discretion about viewing its content, whether due to nudity, violence, or any other likely aspects that viewers may be sensitive to.  This is comparable to what is popularly called "NSFW" (Not Safe For Work) or "trigger warning" in some systems.  Implementations may choose to hide content flagged with this property by default, exposed at user discretion. Original discussion in ActivityPub issue #<a href="https://github.com/w3c/activitypub/issues/231">231</a>.
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>Boolean</code></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An ActivityPub <code>Note</code> with the <code>sensitive</code> property set to true.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/notes/1",
+            "type": "Note",
+            "attributedTo": "https://example.com/users/john",
+            "summary": "A sensitive note",
+            "content": "This note contains sensitive content.",
+            "sensitive": true
+          }
+          </pre>
+      </section>
+    </section>
+    <section id="conformance">
+      <p>
+        This is required for specifications that contain normative material.
+      </p>
+    </section>
+  </body>
+</html>
