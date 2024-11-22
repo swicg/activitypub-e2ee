@@ -1,0 +1,25 @@
+{
+  "mls": "https://purl.archive.org/socialweb/mls#",
+  "mlsKey": "mls:Key",
+  "mlsConversations": "mls:Conversations",
+  "KeyPackage": {
+    "@id": "mls:KeyPackage",
+    "@type": "@id"
+  },
+  "Welcome": {
+    "@id": "mls:Welcome",
+    "@type": "@id"
+  },
+  "Commit": {
+    "@id": "mls:Commit",
+    "@type": "@id"
+  },
+  "Proposal": {
+    "@id": "mls:Proposal",
+    "@type": "@id"
+  },
+  "GroupInfo": {
+    "@id": "mls:GroupInfo",
+    "@type": "@id"
+  }
+}
