@@ -1,0 +1,25 @@
+{
+  "mls": "https://purl.archive.org/socialweb/mls#",
+  "keyPackages": "mls:keyPackages",
+  "encoding": "mls:encoding",
+  "KeyPackage": {
+    "@id": "mls:KeyPackage",
+    "@type": "@id"
+  },
+  "Welcome": {
+    "@id": "mls:Welcome",
+    "@type": "@id"
+  },
+  "GroupInfo": {
+    "@id": "mls:GroupInfo",
+    "@type": "@id"
+  },
+  "PublicMessage": {
+    "@id": "mls:PublicMessage",
+    "@type": "@id"
+  },
+  "PrivateMessage": {
+    "@id": "mls:PrivateMessage",
+    "@type": "@id"
+  }
+}

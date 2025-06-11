@@ -1,190 +1,528 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta name="generator" content=
+  "HTML Tidy for HTML5 for Apple macOS version 5.8.0">
+  <meta charset="utf-8">
   <title>Messaging Layer Security over ActivityPub</title>
-  <script src="https://www.w3.org/Tools/respec/respec-w3c" class="remove" defer></script>
+  <script src="https://www.w3.org/Tools/respec/respec-w3c" class=
+  "remove" defer></script>
   <script class="remove">
-    // All config options at https://respec.org/docs/
-    var respecConfig = {
-      specStatus: "CG-DRAFT",
-      editors: [{ name: "Evan Prodromou", url: "https://socialwebfoundation.org/@evanp" }],
-      github: "swicg/activitypub-e2ee",
-      shortName: "apmls",
-      xref: ["web-platform", "activitystreams-vocabulary", "activitystreams-core", "activitypub"],
-      group: "socialcg",
-    };
+      // All config options at https://respec.org/docs/
+      var respecConfig = {
+        specStatus: "CG-DRAFT",
+        editors: [{ name: "Evan Prodromou", url: "https://socialwebfoundation.org/@evanp" }],
+        github: "swicg/activitypub-e2ee",
+        shortName: "apmls",
+        xref: ["web-platform", "activitystreams-vocabulary", "activitystreams-core", "activitypub"],
+        group: "socialcg",
+      };
   </script>
   <style>
-    table td,
-    table td * {
-      vertical-align: top;
-    }
+      table td,
+      table td * {
+        vertical-align: top;
+      }
   </style>
 </head>
-
 <body>
   <section id="abstract">
-    <p>
-      This specification documents the use of Messaging Layer Security (MLS) over the ActivityPub protocol. MLS is a protocol for end-to-end encryption of group messaging. ActivityPub is a federated social networking protocol. This specification describes how to use MLS to encrypt messages sent over ActivityPub.
-    </p>
+    <p>This specification documents the use of Messaging Layer
+    Security (MLS) over the ActivityPub API and federation
+    protocol. MLS is a protocol for end-to-end encryption of group
+    messaging. ActivityPub is a federated social networking
+    protocol. This specification describes how to use MLS to
+    encrypt messages sent over ActivityPub.</p>
   </section>
   <section id="sotd">
     <p>This is required.</p>
   </section>
-  <section class="informative">
+  <section class="informative" id="introduction">
     <h2>Introduction</h2>
-    <p>ActivityPub supports a number of different addressing modes for content that an actor publishes -- either public content addressed to the <code>mls:Public</code> collection, or semi-private content addressed to a collection such as the actor's followers. Content can also be addressed to other actors specifically; this provides a <em>direct messaging</em> feature in the protocol.</p>
-    <aside class="example">
-      <p>A <code>Note</code> object addressed from one actor to another.</p>
-      <pre class="json">
-      {
-        "@context":"https://www.w3.org/ns/activitystreams",
-        "id": "https://example.com/notes/1d310f1d",
-        "attributedTo": {
-          "id": "https://example.com/users/886b6cc4",
-          "type": "Person",
-          "name": "Evan Prodromou"
-        },
-        "to": {
-          "id": "https://social.example/users/421a67ae",
-          "type": "Person",
-          "name": "Alyssa P. Hacker",
-          "url": "https://social.example/profiles/421a67ae.html"
-        },
-        "type": "Note",
-        "content": "Hello &lt;a href='https://social.example/profiles/421a67ae.html'&gt;@alyssa&lt;/a&gt;!",
-        "published": "2024-11-22T12:34:56Z",
-        "tag": [
-          {
-            "type": "Mention",
-            "mediaType": "text/html",
-            "href": "https://social.example/profiles/421a67ae.html",
-            "name": "@alyssa"
-          }
-        ]
-      }
-      </pre>
-    </aside>
-    <p>
-      User expectations are that direct messages are only readable by the addressed actor(s). The topology of the ActivityPub network, however, introduces several intermediate entities between the sender and the receiver. In particular, the sender's ActivityPub server and the receiver's ActivityPub server receive and store copies of the content. If these servers are operated by entities other than the actor, those entities can inspect the contents of the direct messages, pursuant to the privacy agreement between the user and their server operator.
-    </p>
-    <p>
-      The goals of this specification are to provide an additional level of privacy for the sender and receiver of the direct message, such that intermediaries cannot inspect the contents of the message. Called <dfn>end-to-end encrypted</dfn> or <dfn>E2EE</dfn> messaging, this pattern uses <dfn>public-key encryption</dfn> so that encrypted messages can be sent between actors using publicly-available keys, and decrypted with a corresponding private key available only to the actor. The message is encrypted on the sender's ActivityPub client, and decrypted on the receiver's ActivityPub client. No intermediary has access to the recipient's private key.
-    </p>
-    <section>
-      <h3>User stories</h3>
-      <p>These are the motivating user stories for this specification.</p>
-      <ul>
-        <li><strong>As an ActivityPub user, I can send an encrypted DM to another user without anyone else being able to read it, so that our conversation is private.</strong> (Private messages)</li>
-        <li><strong>As an ActivityPub user, I can send an encrypted message to 2 or more people, so that we can have private group conversations.</strong> (Group messages)</li>
-        <li><strong>As an ActivityPub user, I can read my conversation history with another user, so that I can be reminded of what we said before.</strong> (Message history)</li>
-        <li><strong>As an ActivityPub user, I can attach an encrypted image, video or audio file to my encrypted DM, so that we can communicate privately with different media.</strong> (Attachments)</li>
-        <li><strong>As an ActivityPub user, I can start a conversation on my desktop computer and move over to my mobile device, so that I can have ubiquitous conversations.</strong> (Multiple clients)</li>
-        <li><strong>As an ActivityPub user, I can send an encrypted DM to someone using a different platform, so I don’t have to maintain different accounts for different platforms.</strong> (Cross-platform)</li>
-        <li><strong>As an ActivityPub user, I can block an encrypted DM from someone I don’t know, so I don’t get unsolicited messages.</strong> (DM only from people I know)</li>
-        <li><strong>As an ActivityPub user, I can send encrypted DMs to someone just by their Webfinger ID (username@domain), so I don’t need extra addressing to send DMs.</strong> (No external identity)</li>
-        <li><strong>As an ActivityPub user, I can send encrypted messages through a bridge to users on siloed social networks, so that we can communicate across protocols.</strong> (Bridgeable)</li>
-        <li><strong>As an ActivityPub user, I can delete an encrypted DM, so that I can take back something I wish I hadn’t said.</strong> (Deletable)</li>
-        <li><strong>As an ActivityPub user, I can confirm that the conversation I’m in is truly end-to-end encrypted and that no intermediate man-in-the-middle has access to the contents, so I and my correspondent can use untrusted servers.</strong> (Verifiable)</li>
-        <li><strong>As an ActivityPub user, I can move my DMs to another server, so I can maintain data portability.</strong> (Message portability)</li>
-        <li><strong>As an ActivityPub user, I can create an encrypted DM with a third-party client, so that I don’t have to depend on the server provider, and so that I know that the server provider isn’t snooping.</strong> (Third-party clients)</li>
-        <li><strong>As an ActivityPub user, I can revoke a device or client from my account, so I can stop any further DMs being viewable on the client if it has fallen into the wrong hands or if I decide they are not trustworthy.</strong> (Revoke a client)</li>
-        <li><strong>As an ActivityPub user, I want to use a web-based client, so that I don't have to install any software to send messages.</strong> (Web client)</li>
-        <li><strong>As an ActivityPub user, I don't want to be responsible for managing my encryption keys, because I don't have to do that with other E2EE messaging systems, and it's so easy to make mistakes.</strong> (no manual key management)</li>
-      </ul>
-    </section>
-    <section>
-      <h3>Non-goals</h3>
-      <p>For clarity, these goals are explicitly excluded from this specification. Implementers MAY use other techniques to ensure these goals.</p>
-      <ul>
-        <li>
-          <strong>Encrypted metadata</strong>. Addressing, identity, and typing metadata are required for delivery through the ActivityPub network.
-        </li>
-        <li>
-          <strong>Server-side content filtering</strong>. Because the contents are encrypted, servers cannot filter activities or objects based on their content. Clients may filter content after decryption.
-        </li>
-        <li>
-          <strong>Disappearing messages.</strong>. Some end-to-end encrypted messaging systems allow messages to be automatically deleted after a certain time. This is not implemented in the current specification, but the specification is not incompatible with such a feature.
-        </li>
-        <li>
-          <strong>Easy implementation</strong>. The specification used here is based on the MLS protocol, which is a complex protocol with many moving parts. Implementers should consider using libraries or platforms that support MLS to ensure proper implementation.
-        </li>
-        <li>
-          <strong>E2EE for arbitrary activities.</strong> This specification is targeted primarily to text-based messaging with or without attachments. Other activities, such as "Like" or "Follow", are not covered by this specification.
-        </li>
-        <li>
-          <strong>E2EE broadcast</strong>. This specification is targeted primarily to one-to-one or one-to-many messaging. Broadcast distribution, as is common on social networks, is not covered by this specification.
-        </li>
-        <li>
-          <strong>Push API.</strong> ActivityPub does not provide an API structure to push activities or content objects from the server to a connected client. Clients must poll the server for new content. Although push notifications are very useful for real-time messaging, this specification does not extend the ActivityPub API to provide them.
-        </li>
-      </ul>
-    </section>
-    <section>
-      <h3>Architecture</h3>
-      <p>
-        There are several models for integrating E2EE messaging into ActivityPub. Several were considered by the SocialCG, as detailed in the <a href="https://swicg.github.io/activitypub-e2ee/integration-models">Integration Models</a> document. The model chosen uses an abstract E2EE messaging protocol layered over ActivityPub using the ActivityPub API (client-to-server) and ActivityPub protocol (server-to-server) as the transport.
-      </p>
-      <p>
-        Multiple abstract E2EE messaging protocols were considered, as detailed in the <a href="https://swicg.github.io/activitypub-e2ee/abstract-protocols">Abstract Protocols</a> document. The protocol that most closely matched the technical and intellectual property requirements of the SocialCG was the <a href="https://datatracker.ietf.org/doc/draft-ietf-mls-protocol/">Messaging Layer Security (MLS) protocol</a>. MLS is a protocol for end-to-end encryption of group messaging, and is designed to be secure, efficient, and scalable.
-      </p>
-      <p>
-        To implement the MLS protocol over ActivityPub, this specification provides the following extensions to the ActivityPub and Activity Streams 2.0 vocabulary:
-      </p>
-      <ul>
-        <li>A property of the actor to allow discovering all the public keys of all of the actor's clients.
-        </li>
-        <li>A property of the actor to allow reading all of the actor's incoming and outgoing messages that have been created with this protocol.
-        </li>
-        <li>A set of object types and properties that map directly to the data types defined by the MLS protocol.
-        </li>
-      </ul>
-      <p>
-        This document does not specify the details of the MLS protocol, which are defined in <a href="https://datatracker.ietf.org/doc/rfc9420/">RFC 9420</a>. Implementers should refer to that document for the details of the protocol.
-      </p>
-    </section>
+    <p>Messaging Layer Security (MLS) [[rfc9420]] is an end-to-end
+    encrypted messaging framework. It is designed to work with
+    different lower-level protocols which provide necessary
+    services for transporting data around the network.</p>
+    <p>[[ActivityPub]] is the W3C social networking standard. It
+    defines an API for client to server interactions and a
+    federation protocol for server to server communications.
+    ActivityPub's native data format is Activity Streams 2.0 (AS2)
+    [[activitystreams-core]], an extensible [[JSON-LD]] vocabulary
+    for common social network objects and activities.</p>
+    <p>This document describes the interfaces between MLS and
+    ActivityPub. In particular, it explains how ActivityPub can
+    provide the Delivery Service and Authentication Service
+    features of MLS, as described in the MLS Architecture
+    [[rfc9750]]. It provides an extension to the AS2 Activity
+    Vocabulary for supporting these features.</p>
+    <p>The data structure of this specification follows a
+    three-layer model:</p>
+    <ul>
+      <li>ActivityPub as an envelope data structure, to ensure data
+      routing, persistence, and federation across servers. The JSON
+      envelopes are conveyed directly across the ActivityPub
+      network.</li>
+      <li>MLS as an encryption and signature layer. The MLS message
+      objects are embedded as base64-encoded binary objects within
+      the ActivityPub JSON envelopes.</li>
+      <li>A limited profile of Activity Streams 2.0 for
+      representing messages and conversations (see <a>application
+      data</a>). This profile is <b>not</b> compatible with
+      ActivityPub -- in particular, because object IDs in this
+      profile are not HTTPS URLs. These AS2 objects are embedded in
+      the <code>application_data</code> fields of MLS
+      PrivateMessage objects.
+      </li>
+    </ul>
+    <p>This document is not an implementation manual for MLS over
+    ActivityPub. Instead, it attempts to provide a minimal
+    interaction layer between the two frameworks. Implementers
+    should be familiar with both MLS and ActivityPub.</p>
   </section>
-  <section id="context">
-    <h2>Context</h2>
-    <p>
-      The terms in this document are defined in a context document that can be used in [[JSON-LD]] documents. The
-      context document is available at <a
-        href="https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>.
-    </p>
-    <p>To use these terms, documents should include this context URL in the
-      <code>@context</code> property of the JSON-LD document.
-    </p>
-    <aside class="example">
-      <p>Example usage of the context.</p>
-      <pre class="json">
+  <section id="delivery-service">
+    <h2>Delivery Service</h2>
+    <p>The Delivery Service role in MLS has two main
+    responsibilities:</p>
+    <ul>
+      <li>delivery of messages to the group ("Group channel")</li>
+      <li>maintaining a key store ("directory")</li>
+    </ul>
+    <section id="message-delivery">
+      <h3>Message delivery</h3>
+      <p>ActivityPub provides a robust delivery mechanism for AS2
+      objects. To send an object to others on the network, a user
+      POSTs a <code>Create</code> activity to their own
+      <code>outbox</code> property with the addresses of the
+      recipients in the <code>to</code> or <code>cc</code>
+      properties. The sending actor's server adds an
+      <code>id</code> property to the activity and the object and
+      stores the object before forwarding it to the recipients
+      across the federation protocol.</p>
+      <aside class="example" title=
+      "An object as sent from server to server">
+        <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Create",
+              "id": "https://social.example/user/example1/create/1",
+              "actor": "https://social.example/user/example1",
+              "to": ["https://other.example/user/example2","https://third.example/user/example3"],
+              "object": {
+                "type": "Object",
+                "summary": "An example object",
+                "id": "https://social.example/user/example1/object/1",
+                "attributedTo": "https://social.example/user/example1",
+              "to": ["https://other.example/user/example2","https://third.example/user/example3"],
+              }
+            }
+          </pre>
+      </aside>
+      <p>MLS data is structured in a binary format and includes
+      detailed encryption and signature fields. For this reason,
+      the MLS wire formats are preserved in AS2 objects with
+      <code>mediaType</code> set to <code>message/mls</code>.</p>
+      <p>Each of the <a href=
+      "https://www.rfc-editor.org/rfc/rfc9420.html#name-mls-wire-formats">
+      five MLS wire format</a> structures has an equivalent data
+      type defined as an AS2 extension in the MLS context:
+      <a>PublicMessage</a>, <a>PrivateMessage</a>, <a>Welcome</a>,
+      <a>GroupInfo</a>, and <a>KeyPackage</a>.</p>
+      <aside class="example" title=
+      "An MLS private message delivered over ActivityPub">
+        <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "type": "Create",
+              "id": "https://social.example/user/example1/create/2",
+              "actor": "https://social.example/user/example1",
+              "to": ["https://other.example/user/example2","https://third.example/user/example3"],
+              "object": {
+                "type": ["Object", "PrivateMessage"],
+                "id": "https://social.example/user/example1/privatemessage/1",
+                "attributedTo": "https://social.example/user/example1",
+              "to": ["https://other.example/user/example2","https://third.example/user/example3"],
+                "summary": "This is an encrypted private message. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these."
+                "mediaType": "message/mls",
+                "encoding": "base64"
+                "content": "[base64-encoded private message object]"
+              }
+            }
+          </pre>
+      </aside>
+      <p>Delivery of MLS objects over the ActivityPub network
+      requires addressing all recipients explicitly. See <a>Privacy
+      considerations</a> for more details.</p>
+      <p>Reading incoming messages is done through the actor's
+      <a>inbox</a> property. This is a collection of all activities
+      received by the actor,including but not exclusive to
+      activities related to MLS. ActivityPub does not support push
+      notifications, so MLS-enabled ActivityPub clients have to
+      periodically poll the inbox collection for new
+      activities.</p>
+      <p>Other activities in the object lifecycle, such as
+      reactions, updates, or deletions, should be handled as part
+      of the <a>application data</a> within MLS private messages,
+      and not as regular ActivityPub activities. So, for example,
+      creating and updating an encrypted <code>Note</code> is
+      modeled as two <a>Create</a> activities -- one for the
+      creation, the second for the update.</p>
+    </section>
+    <section id="key-storage">
+      <h3>Key storage</h3>
+      <p>Each actor in the ActivityPub network has a public profile
+      with important protocol properties defined, such as
+      <a>inbox</a>, <a>following</a>, and
+      <a>preferredUsername</a>.</p>
+      <p>The set of currently valid <a>KeyPackage</a> objects for
+      an actor are an additional property of the actor object,
+      <a>keyPackages</a>. Its value is an ActivityPub
+      <a>Collection</a> of KeyPackage objects.</p>
+      <aside class="example" title=
+      "An actor with a keyPackages property">
+        <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "type": "Person",
+              "id": "https://social.example/user/example1",
+              "name": "Example User",
+              "preferredUsername": "example1",
+              "inbox": "https://social.example/user/example1/inbox",
+              "outbox": "https://social.example/user/example1/outbox",
+              "keyPackages": {
+                "type": "Collection",
+                "id":  "https://social.example/user/example1/keyPackages",
+                "totalItems": 2,
+                "items": [
+                  "https://social.example/user/example1/keyPackage/A",
+                  "https://social.example/user/example1/keyPackage/B"
+                ]
+              }
+            }
+          </pre>
+      </aside>
+      <p>A KeyPackage object for an actor goes through 4 steps in
+      its lifecycle:</p>
+      <ol>
+        <li>
+          <a>Create</a> to create the object
+        </li>
+        <li>
+          <a>Add</a> to add it to the collection of valid key
+          packages
+        </li>
+        <li>
+          <a>Remove</a> to remove it from the collection
+        </li>
+        <li>
+          <a>Delete</a> to delete it and make it unavailable
+        </li>
+      </ol>Create and Add must be strictly ordered; it's not
+      possible to add a KeyPackage before creating it. Removal and
+      Deletion are less strictly ordered; a key package can be
+      removed, then deleted, or vice versa.
+      <aside class="example" title="Creating a key package">
+        <pre class="json">
           {
             "@context": [
               "https://www.w3.org/ns/activitystreams",
               "https://purl.archive.org/socialweb/mls"
             ],
-            "id": "https://example.com/users/evan",
-            "type": "Person",
-            "name": "Evan Prodromou",
-            "mlsKey": [
-              "https://example.com/keys/evan/client1",
-              "https://example.com/keys/evan/client2"
-            ]
+            "type": "Create",
+            "id": "https://social.example/user/example1/create/3",
+            "actor": "https://social.example/user/example1",
+            "to": "as:Public",
+            "object": {
+              "type": ["Object", "KeyPackage"],
+              "id": "https://social.example/user/example1/keyPackage/C",
+              "attributedTo": "https://social.example/user/example1",
+              "to": "as:Public",
+              "summary": "This is binary-encoded cryptographic key package. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these."
+              "mediaType": "message/mls",
+              "encoding": "base64"
+              "content": "[base64-encoded private message object]",
+              "generator": {
+                "id": "https://client.example/actor",
+                "type": "Application",
+                "name": "Example MLS over ActivityPub client"
+              }
+            }
           }
-        </pre>
+          </pre>
+      </aside>
+      <p>The <code>generator</code> property can be used to
+      identify the client application associated with the
+      <code>KeyPackage</code>.</p>
+      <aside class="example" title=
+      "Adding a key package to the keyPackages collection">
+        <pre class="json">
+          {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+            ],
+            "type": "Add",
+            "id": "https://social.example/user/example1/add/1",
+            "actor": "https://social.example/user/example1",
+            "to": "as:Public",
+            "object": "https://social.example/user/example1/keyPackage/C",
+            "target": "https://social.example/user/example1/keyPackages"
+          }
+          </pre>
+      </aside>
+      <aside class="example" title=
+      "Removing a key package from the keyPackages collection">
+        <pre class="json">
+          {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+            ],
+            "type": "Remove",
+            "id": "https://social.example/user/example1/remove/1",
+            "actor": "https://social.example/user/example1",
+            "to": "as:Public",
+            "object": "https://social.example/user/example1/keyPackage/C",
+            "target": "https://social.example/user/example1/keyPackages"
+          }
+          </pre>
+      </aside>
+      <aside class="example" title="Deleting a key package">
+        <pre class="json">
+          {
+            "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+            ],
+            "type": "Delete",
+            "id": "https://social.example/user/example1/delete/1",
+            "actor": "https://social.example/user/example1",
+            "to": "as:Public",
+            "object": "https://social.example/user/example1/keyPackage/C"
+          }
+          </pre>
+      </aside>
+      <p>As with all ActivityPub objects, the KeyPackage can be
+      read in full using an HTTP GET request to the <a>id</a>
+      URL.</p>
+    </section>
+  </section>
+  <section id="authentication-service">
+    <h2>Authentication Service</h2>
+    <p>The Authentication Service in the MLS framework has the
+    responsibility of confirming the relationship between a
+    <code>KeyPackage</code> object and an identity. In ActivityPub,
+    an identity is expressed as an actor object URL.</p>
+    <p>In the ActivityPub model shown here, authenticating a
+    <code>KeyPackage</code> requires three steps:</p>
+    <ol>
+      <li>Retrieving the actor with the given ID; this requires an
+      HTTP GET request to the actor ID URL.</li>
+      <li>Verifying that the actor object has a
+      <code>keyPackages</code> property.</li>
+      <li>Confirming that the given <code>KeyPackage</code> object
+      is an item in the <code>keyPackages</code> collection.</li>
+    </ol>
+  </section>
+  <section id="application-data">
+    <h2>Application data</h2>
+    <p>MLS is agnostic about application data encrypted and sent
+    over the network. To match the ActivityPub model, this
+    specification defines the application data for use over MLS as
+    Activity Streams 2.0 content objects and activities. Unlike
+    ActivityPub objects, these AS2 objects are not available for
+    download from any server, and do not use HTTPS URLs as
+    <code>id</code> values.</p>
+    <p>In general, the content of the MLS messages should be
+    self-encapsulated and not dependent on external resources.
+    Client applications cannot rely on a server to save state for
+    the group and the shared application data. This restricts the
+    use of URLs and <code>Link</code> objects in the content.</p>
+    <section id="content-objects">
+      <h3>Content objects</h3>
+      <p>The Activity Vocabulary defines several document types for
+      content. The following types are used in this
+      specification:</p>
+      <ul>
+        <li>
+          <a>Note</a>
+        </li>
+        <li>
+          <a>Article</a>
+        </li>
+        <li>
+          <a>Image</a>
+        </li>
+        <li>
+          <a>Audio</a>
+        </li>
+        <li>
+          <a>Video</a>
+        </li>
+      </ul>There are the following restrictions on the properties
+      of the content objects:
+      <ul>
+        <li><code>id</code>. This should be a unique URI, but not
+        an HTTPS URL. A UUID, for example, provides a reasonably
+        unique value that can be indexed in the client's local
+        storage.</li>
+        <li><code>mediaType</code>. For <code>Note</code> and
+        <code>Article</code>, these should be unset, or use the
+        default "text/html". For the other content types, this
+        should include the Internet Media Type for the object, such
+        as "image/png" or "video/ogg".</li>
+        <li><code>encoding</code>. A new property introduced in
+        this document; the default value is "base64", for base64
+        encoding.</li>
+        <li><code>content</code>. For <code>Note</code> and
+        <code>Article</code>, this should be the HTML content of
+        the object, as usual. For the other types, this should be
+        the base64-encoded content of the object itself. For an
+        <code>Image</code> in Portable Network Graphics (PNG)
+        format, the <code>content</code> property value will be the
+        base64-encoded image data.</li>
+        <li><code>summary</code>. A summary or description of the
+        content.</li>
+        <li><code>url</code>. This should be undefined; the object
+        should not have a version available as a Web page.</li>
+        <li><code>attachment</code>. These values should not be
+        <code>Link</code> objects; instead, they should be content
+        objects of the above types. They should be included fully
+        using base64-encoded values in the <code>content</code>
+        property, with the <code>mediaType</code> property
+        set.</li>
+        <li><code>inReplyTo</code>. Should be the <code>id</code>
+        of a content object already delivered to the same
+        group.</li>
+        <li><code>replies</code>, <code>likes</code>, and
+        <code>shares</code>. In this application of MLS, reactions
+        to content objects are not tracked by a server, but by each
+        client individually. Consequently, these values should be
+        unset.</li>
+      </ul>
+    </section>
+    <section id="activities">
+      <h3>Activities</h3>
+      <p>Activities are the top-level content in MLS messages.</p>
+      <p>The following Activity types from the Activity Vocabulary
+      are defined in this document.</p>
+      <ul>
+        <li>
+          <code>Create</code> Introduces a new object. The
+          <code>object</code> property should be a <a>full
+          embedding</a> -- all properties represented as a JSON
+          object. The <code>id</code> of the object must be unique.
+        </li>
+        <li><code>Update</code> Updates the properties of an
+        existing object.Only changed properties must be included in
+        the <code>object</code> property. The <code>id</code>
+        property must match an object that was received as the
+        <code>object</code> of a <code>Create</code> property
+        previously. Only the sender of the <code>Create</code>
+        activity can send an <code>Update</code> for the same
+        object.</li>
+        <li><code>Delete</code> Deletes an existing object. The
+        <code>object</code> property can be a full embedding or a
+        reference. The <code>id</code> property must match an
+        object that was received as the <code>object</code> of a
+        <code>Create</code> property previously. Only the sender of
+        the <code>Create</code> activity can send an
+        <code>Delete</code> for the same object.</li>
+        <li><code>Like</code> Indicates that the sender likes the
+        <code>object</code>. The <code>object</code> property can
+        be a full embedding or a reference. The <code>id</code>
+        property must match an object that was received as the
+        <code>object</code> of a <code>Create</code> property
+        previously.</li>
+        <li><code>Announce</code> Shares the <code>object</code>
+        with the group. The <code>object</code> property should be
+        a full embedding. The <code>id</code> property can match an
+        object that was received as the <code>object</code> of a
+        <code>Create</code> property previously; alternately, it
+        can be an ActivityPub object with an HTTPS URL
+        <code>id</code>.</li>
+        <li><code>Undo</code> Undoes the activity that is the
+        <code>object</code>. The <code>object</code> property can
+        be a full embedding or a reference. The <code>id</code>
+        property must match an activity that was received
+        previously. Only the sender of the previous activity can
+        undo it. Undoing a <code>Like</code> activity shows that
+        the sender does not like the object. The results of undoing
+        other activity types are undefined.</li>
+        <li><code>Read</code>. Indicates that the sender has read a
+        <code>Note</code> or <code>Article</code>, or the
+        description of an <code>Image</code> or other binary file
+        type. The <code>object</code> property should be a partial
+        embedding or a reference. The <code>id</code> property must
+        match an object that was received as the
+        <code>object</code> of a <code>Create</code> property
+        previously.</li>
+        <li><code>Listen</code>. Indicates that the sender has
+        listened to an <code>Audio</code> object. The
+        <code>object</code> property should be a partial embedding
+        or a reference. The <code>id</code> property must match an
+        object that was received as the <code>object</code> of a
+        <code>Create</code> property previously.</li>
+        <li><code>View</code>. Indicates that the sender has viewed
+        an <code>Image</code> object or <code>Video</code> object.
+        The <code>object</code> property should be a partial
+        embedding or a reference. The <code>id</code> property must
+        match an object that was received as the
+        <code>object</code> of a <code>Create</code> property
+        previously.</li>
+      </ul>
+    </section>
+    <section id="extensions">
+      <h3>Extensions</h3>
+      <p>Other activity or content types from the Activity
+      Vocabulary, and from Activity Streams 2.0 extensions, may be
+      used in this structure. The use of extended properties or
+      types in the encrypted content of MLS over ActivityPub should
+      be documented on the W3C wiki.</p>
+    </section>
+  </section>
+  <section id="context">
+    <h2>Context</h2>
+    <p>The terms in this document are defined in a context document
+    that can be used in [[JSON-LD]] documents. The context document
+    is available at <a href=
+    "https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>.</p>
+    <p>To use these terms, documents should include this context
+    URL in the <code>@context</code> property of the JSON-LD
+    document.</p>
+    <aside class="example">
+      <p>Example usage of the context.</p>
+      <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/users/evan",
+              "type": "Person",
+              "name": "Evan Prodromou",
+              "keyPackages": [
+                "https://example.com/keys/evan/client1",
+                "https://example.com/keys/evan/client2"
+              ]
+            }
+          </pre>
     </aside>
-
-    <p>The context document defines a namespace prefix <code>mls</code> defined as <code>https://purl.archive.org/socialweb/mls#</code>.</p>
+    <p>The context document defines a namespace prefix
+    <code>mls</code> defined as
+    <code>https://purl.archive.org/socialweb/mls#</code>.</p>
     <section>
       <h3>Version-stamped URLs</h3>
-
-      <p>To ease the use of
-        this context for implementers with strict versioning requirements,
-        additional URL aliases are provided with versions included. A <a href="https://semver.org/">semantic versioning</a>
-        strategy is used to convey the guarantees of the version number.
-      </p>
-
+      <p>To ease the use of this context for implementers with
+      strict versioning requirements, additional URL aliases are
+      provided with versions included. A <a href=
+      "https://semver.org/">semantic versioning</a> strategy is
+      used to convey the guarantees of the version number.</p>
       <table>
         <tbody>
           <tr>
@@ -194,344 +532,479 @@
           </tr>
           <tr>
             <td>(latest)</td>
-            <td><a href="https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>
+            <td>
+              <a href=
+              "https://purl.archive.org/socialweb/mls">https://purl.archive.org/socialweb/mls</a>
             </td>
-            <td>The latest version of the context is always available at this URL. Most implementers can use this URL.</td>
+            <td>The latest version of the context is always
+            available at this URL. Most implementers can use this
+            URL.</td>
           </tr>
           <tr>
             <td>1.0.0</td>
-            <td><a
-                href="https://purl.archive.org/socialweb/mls/1.0.0">https://purl.archive.org/socialweb/mls/1.0.0</a>
+            <td>
+              <a href=
+              "https://purl.archive.org/socialweb/mls/1.0.0">https://purl.archive.org/socialweb/mls/1.0.0</a>
             </td>
-            <td>The exact version of the context document. The resource at this URL should be immutable. This URL is useful
-              for implementers that
-              need an exact, byte-wise replicable version of the document.
-            </td>
+            <td>The exact version of the context document. The
+            resource at this URL should be immutable. This URL is
+            useful for implementers that need an exact, byte-wise
+            replicable version of the document.</td>
           </tr>
           <tr>
             <td>1.0.x</td>
-            <td><a
-                href="https://purl.archive.org/socialweb/mls/1.0">https://purl.archive.org/socialweb/mls/1.0</a>
+            <td>
+              <a href=
+              "https://purl.archive.org/socialweb/mls/1.0">https://purl.archive.org/socialweb/mls/1.0</a>
             </td>
-            <td>Backwards-compatible fixes are possible, but no additional types or properties are defined. This is useful
-              for implementers
-              that use multiple extensions and want to ensure that no
-              conflicting terms are added.
-            </td>
+            <td>Backwards-compatible fixes are possible, but no
+            additional types or properties are defined. This is
+            useful for implementers that use multiple extensions
+            and want to ensure that no conflicting terms are
+            added.</td>
           </tr>
           <tr>
             <td>1.x.x</td>
-            <td><a
-                href="https://purl.archive.org/socialweb/mls/1">https://purl.archive.org/socialweb/mls/1</a>
+            <td>
+              <a href=
+              "https://purl.archive.org/socialweb/mls/1">https://purl.archive.org/socialweb/mls/1</a>
             </td>
-            <td>Backwards-compatible fixes, additional types and properties are possible. This is useful for implementers
-              that want to ensure
-              that the properties and types they use are stable and will not change, but do not need to avoid term
-              conflicts.
-            </td>
+            <td>Backwards-compatible fixes, additional types and
+            properties are possible. This is useful for
+            implementers that want to ensure that the properties
+            and types they use are stable and will not change, but
+            do not need to avoid term conflicts.</td>
           </tr>
         </tbody>
       </table>
-
-      <p>Using the version-stamped context URLs is similar to the unstamped URL.</p>
-
+      <p>Using the version-stamped context URLs is similar to the
+      unstamped URL.</p>
       <aside class="example">
         <p>Example usage of a version-stamped context URL.</p>
         <pre class="json">
-                  {
-                    "@context": [
-                      "https://www.w3.org/ns/activitystreams",
-                      "https://purl.archive.org/socialweb/mls/1.0"
-                    ],
-                    "id": "https://example.com/users/evan",
-                    "type": "Person",
-                    "name": "Evan Prodromou",
-                    "mlsKey": [
-                      "https://example.com/keys/evan/client1",
-                      "https://example.com/keys/evan/client2"
-                    ]
-                  }
-                </pre>
+                    {
+                      "@context": [
+                        "https://www.w3.org/ns/activitystreams",
+                        "https://purl.archive.org/socialweb/mls/1.0"
+                      ],
+                      "id": "https://example.com/users/evan",
+                      "type": "Person",
+                      "name": "Evan Prodromou",
+                      "keyPackages": [
+                        "https://example.com/keys/evan/client1",
+                        "https://example.com/keys/evan/client2"
+                      ]
+                    }
+                  </pre>
       </aside>
-
-      <p>If backwards-incompatible changes to this context are made in the future, a new major version (2.x.x) would be added and the existing 1.x.x URLs would continue to be provided.</p>
-
+      <p>If backwards-incompatible changes to this context are made
+      in the future, a new major version (2.x.x) would be added and
+      the existing 1.x.x URLs would continue to be provided.</p>
     </section>
   </section>
-  <section id="types">
-    <h2>Types</h2>
-
-    <p>This extension includes the object types define by MLS.</p>
-    <section id="KeyPackage" data-dfn-for="KeyPackage">
-      <h3>KeyPackage</h3>
-      <table>
-        <tbody>
-          <tr>
-            <td width="10%">
-              URI:
-            </td>
-            <td>
-              <code>https://purl.archive.org/socialweb/mls#KeyPackage</code><br>
-              <code>mls:KeyPackage</code><br>
-              <code>KeyPackage</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Notes:
-            </td>
-            <td>
-              <p>
-                TBD
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>Extends:</td>
-            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code></td>
-          </tr>
-          <tr>
-            <td>Properties:</td>
-            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code>.</td>
-          </tr>
-        </tbody>
-      </table>
-      <aside class="example">
-        <p>TBD</p>
-        <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/kp/1",
-            "type": "KeyPackage"
-          }
-      </aside>
-    </section>
-
-    <section id="Proposal" data-dfn-for="Proposal">
-      <h3>Proposal</h3>
-      <table>
-        <tbody>
-          <tr>
-            <td width="10%">
-              URI:
-            </td>
-            <td>
-              <code>https://purl.archive.org/socialweb/mls#Proposal</code><br>
-              <code>mls:Proposal</code><br>
-              <code>Proposal</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Notes:
-            </td>
-            <td>
-              <p>
-                TBD
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>Extends:</td>
-            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code></td>
-          </tr>
-          <tr>
-            <td>Properties:</td>
-            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code>.</td>
-          </tr>
-        </tbody>
-      </table>
-      <aside class="example">
-        <p>TBD</p>
-        <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/prop/1",
-            "type": "Proposal"
-          }
-      </aside>
-    </section>
-
-    <section id="Commit" data-dfn-for="Commit">
-      <h3>Commit</h3>
-      <table>
-        <tbody>
-          <tr>
-            <td width="10%">
-              URI:
-            </td>
-            <td>
-              <code>https://purl.archive.org/socialweb/mls#Commit</code><br>
-              <code>mls:Commit</code><br>
-              <code>Commit</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Notes:
-            </td>
-            <td>
-              <p>
-                TBD
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>Extends:</td>
-            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code></td>
-          </tr>
-          <tr>
-            <td>Properties:</td>
-            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code>.</td>
-          </tr>
-        </tbody>
-      </table>
-      <aside class="example">
-        <p>TBD</p>
-        <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/prop/1",
-            "type": "Commit"
-          }
-      </aside>
-    </section>
-
-    <section id="Welcome" data-dfn-for="Welcome">
-      <h3>Welcome</h3>
-      <table>
-        <tbody>
-          <tr>
-            <td width="10%">
-              URI:
-            </td>
-            <td>
-              <code>https://purl.archive.org/socialweb/mls#Welcome</code><br>
-              <code>mls:Welcome</code><br>
-              <code>Welcome</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Notes:
-            </td>
-            <td>
-              <p>
-                TBD
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>Extends:</td>
-            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code></td>
-          </tr>
-          <tr>
-            <td>Properties:</td>
-            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code>.</td>
-          </tr>
-        </tbody>
-      </table>
-      <aside class="example">
-        <p>TBD</p>
-        <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/prop/1",
-            "type": "Welcome"
-          }
-      </aside>
-    </section>
-
-    <section id="GroupInfo" data-dfn-for="GroupInfo">
-      <h3>GroupInfo</h3>
-      <table>
-        <tbody>
-          <tr>
-            <td width="10%">
-              URI:
-            </td>
-            <td>
-              <code>https://purl.archive.org/socialweb/mls#GroupInfo</code><br>
-              <code>mls:GroupInfo</code><br>
-              <code>GroupInfo</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              Notes:
-            </td>
-            <td>
-              <p>
-                TBD
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td>Extends:</td>
-            <td><code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code></td>
-          </tr>
-          <tr>
-            <td>Properties:</td>
-            <td>Inherits all properties from <code><a href="https://www.w3.org/TR/activitystreams-core/#object">Object</a></code>.</td>
-          </tr>
-        </tbody>
-      </table>
-      <aside class="example">
-        <p>TBD</p>
-        <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/prop/1",
-            "type": "GroupInfo"
-          }
-      </aside>
-    </section>
-  </section>
-  <section id="properties">
-      <h2>Properties</h2>
-
-      <section id="mlsKey" data-dfn-for="mlsKey">
-        <h3>mlsKey</h3>
+  <section id="terms">
+    <h2>Terms</h2>
+    <p>These terms are defined in the MLS namespace for
+    ActivityPub. There are five new object types, and one new
+    property.</p>
+    <section id="types">
+      <h3>Types</h3>
+      <p>There are five types defined in this context.</p>
+      <section id="PublicMessage" data-dfn-for="PublicMessage">
+        <h3>PublicMessage</h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">
-                URI:
-              </td>
+              <td width="10%">URI:</td>
               <td>
-                <code>https://purl.archive.org/socialweb/mls#mlsKey</code><br>
-                <code>mls:mlsKey</code><br>
-                <code>mlsKey</code>
+              <code>https://purl.archive.org/socialweb/mls#PublicMessage</code><br>
+
+              <code>mls:PublicMessage</code><br>
+              <code>PublicMessage</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The PublicMessage data type from MLS. The
+                <code>mediaType</code> should be "message/mls", and
+                the <code>content</code> should be base64-encoded
+                binary data matching an <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-message-framing">
+                MLSMessage</a> structure with a <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-encoding-and-decoding-a-pub">
+                PublicMessage</a> wire type.</p>
               </td>
             </tr>
             <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A PublicMessage object.</p>
+          <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/users/alyssa/publicmessage/1",
+              "type": "PublicMessage",
+              "attributedTo": "https://example.com/users/alyssa",
+              "to": [
+                "https://social.example/users/example1",
+                "https://another.example/users/example2"
+              ],
+              "mediaType": "message/mls",
+              "encoding": "base64",
+              "summary": "This is a public message in MLS format.",
+              "content": "[base64-encoded MLSMessage]",
+              "generator": {
+                "id": "https://client.example/actor",
+                "type": "Application",
+                "name": "MLS-enabled ActivityPub client"
+              }
+            }
+            </pre>
+        </aside>
+      </section>
+      <section id="PrivateMessage" data-dfn-for="PrivateMessage">
+        <h3>PrivateMessage</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
               <td>
-                Notes:
+              <code>https://purl.archive.org/socialweb/mls#PrivateMessage</code><br>
+
+              <code>mls:PrivateMessage</code><br>
+              <code>PrivateMessage</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The PrivateMessage data type from MLS. The
+                <code>mediaType</code> should be "message/mls", and
+                the <code>content</code> should be base64-encoded
+                binary data matching an <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-message-framing">
+                MLSMessage</a> structure with a <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-encoding-and-decoding-a-pri">
+                PrivateMessage</a> wire type.</p>
               </td>
+            </tr>
+            <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A PrivateMessage object.</p>
+          <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/users/alyssa/privatemessage/1",
+              "type": "PrivateMessage",
+              "attributedTo": "https://example.com/users/alyssa",
+              "to": [
+                "https://social.example/users/example1",
+                "https://another.example/users/example2"
+              ],
+              "mediaType": "message/mls",
+              "encoding": "base64",
+              "summary": "This is a private message in MLS format.",
+              "content": "[base64-encoded MLSMessage]",
+              "generator": {
+                "id": "https://client.example/actor",
+                "type": "Application",
+                "name": "MLS-enabled ActivityPub client"
+              }
+            }
+            </pre>
+        </aside>
+      </section>
+      <section id="KeyPackage" data-dfn-for="KeyPackage">
+        <h3>KeyPackage</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
               <td>
-                <p>
-                  The <code>mlsKey</code> property represents the client keys for an actor. As with other JSON-LD <code>@id</code> properties, its value can be a string for the URL of the key, a JSON object with the properties of the key itself, or an array of strings and/or objects.
-                </p>
+              <code>https://purl.archive.org/socialweb/mls#KeyPackage</code><br>
+
+              <code>mls:KeyPackage</code><br>
+              <code>KeyPackage</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The KeyPackage data type from MLS. The
+                <code>mediaType</code> should be "message/mls", and
+                the <code>content</code> should be base64-encoded
+                binary data matching an <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-message-framing">
+                MLSMessage</a> structure with a <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-key-packages">
+                KeyPackage</a> wire type.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A KeyPackage object.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/keypackage/1",
+            "type": "PrivateMessage",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "as:Public",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a key package in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
+          </pre>
+        </aside>
+      </section>
+      <section id="GroupInfo" data-dfn-for="GroupInfo">
+        <h3>GroupInfo</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#GroupInfo</code><br>
+
+              <code>mls:GroupInfo</code><br>
+              <code>GroupInfo</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The GroupInfo data type from MLS. The
+                <code>mediaType</code> should be "message/mls", and
+                the <code>content</code> should be base64-encoded
+                binary data matching an <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-message-framing">
+                MLSMessage</a> structure with a <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3">
+                GroupInfo</a> wire type.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A GroupInfo object.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/groupinfo/1",
+            "type": "GroupInfo",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "https://social.example/user/example1",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a group information packet in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
+          </pre>
+        </aside>
+      </section>
+      <section id="Welcome" data-dfn-for="Welcome">
+        <h3>Welcome</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#Welcome</code><br>
+
+              <code>mls:Welcome</code><br>
+              <code>Welcome</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The Welcome data type from MLS. The
+                <code>mediaType</code> should be "message/mls", and
+                the <code>content</code> should be base64-encoded
+                binary data matching an <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#name-message-framing">
+                MLSMessage</a> structure with a <a href=
+                "https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3.1">
+                Welcome</a> wire type.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A GroupInfo object.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/welcome/1",
+            "type": "GroupInfo",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "https://social.example/user/example1",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a welcome packet in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
+          </pre>
+        </aside>
+      </section>
+    </section>
+    <section id="properties">
+      <h3>Properties</h3>
+      <p>There are two properties defined in the namespace.</p>
+      <section id="encoding" data-dfn-for="encoding">
+        <h3>encoding</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#encoding</code><br>
+
+              <code>mls:encoding</code><br>
+              <code>encoding</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The <code>encoding</code> property represents
+                the encoding for the <code>content</code> property,
+                similar to the <a>Content-Transfer-Encoding</a>
+                header in email and HTTP messages.</p>
               </td>
             </tr>
             <tr>
               <td>Domain:</td>
-              <td><code>Object</code> (an ActivityPub <a href="https://www.w3.org/TR/activitypub/#actors">Actor</a>)</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td>
+                String; values for <a>Content-Transfer-Encoding</a>
+                in [[rfc2045]]
+              </td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An Image object with an encoding property.</p>
+          <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/image/1",
+              "type": "Image",
+              "name": "One-pixel PNG",
+              "mediaType": "image/png",
+              "encoding": "base64",
+              "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII="
+            }
+            </pre>
+        </aside>
+      </section>
+      <section id="keyPackages" data-dfn-for="keyPackages">
+        <h3>keyPackages</h3>
+        <table>
+          <tbody>
+            <tr>
+              <td width="10%">URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#keyPackages</code><br>
+
+              <code>mls:keyPackages</code><br>
+              <code>keyPackages</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The <code>keyPackages</code> property represents
+                the client keys for an actor. As with other JSON-LD
+                <code>@id</code> properties, its value can be a
+                string for the URL of the key, a JSON object with
+                the properties of the key itself, or an array of
+                strings and/or objects.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td>
+                <code>Object</code> (an ActivityPub <a href=
+                "https://www.w3.org/TR/activitypub/#actors">Actor</a>)
+              </td>
             </tr>
             <tr>
               <td>Range:</td>
@@ -544,92 +1017,42 @@
           </tbody>
         </table>
         <aside class="example">
-          <p>An ActivityPub actor with an <code>mlsKey</code> property.</p>
+          <p>An ActivityPub actor with an <code>keyPackages</code>
+          property.</p>
           <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/users/alyssa",
-            "type": "Person",
-            "name": "Alyssa P. Hacker",
-            "inbox": "https://example.com/users/alyssa/inbox",
-            "outbox": "https://example.com/users/alyssa/outbox",
-            "followers": "https://example.com/users/alyssa/followers",
-            "following": "https://example.com/users/alyssa/following",
-            "liked": "https://example.com/users/alyssa/liked",
-            "mlsKey": "https://example.com/users/alyssa/key"
-          }
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/users/alyssa",
+              "type": "Person",
+              "name": "Alyssa P. Hacker",
+              "inbox": "https://example.com/users/alyssa/inbox",
+              "outbox": "https://example.com/users/alyssa/outbox",
+              "followers": "https://example.com/users/alyssa/followers",
+              "following": "https://example.com/users/alyssa/following",
+              "liked": "https://example.com/users/alyssa/liked",
+              "keyPackages": "https://example.com/users/alyssa/key"
+            }
           </pre>
         </aside>
       </section>
-
-      <section id="mlsKey" data-dfn-for="mlsKey">
-        <h3>mlsConversations</h3>
-        <table>
-          <tbody>
-            <tr>
-              <td width="10%">
-                URI:
-              </td>
-              <td>
-                <code>https://purl.archive.org/socialweb/mls#mlsConversations</code><br>
-                <code>mls:mlsConversations</code><br>
-                <code>mlsConversations</code>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Notes:
-              </td>
-              <td>
-                <p>
-                  The <code>mlsConversations</code> property represents the secure conversations the actor has participated in. It is an <code>OrderedCollection</code> of <code>OrderedCollection</code> objects. Each ordered collection represents the messages in a conversation. The conversations are ordered in reverse chronological order by the most recently initiated conversation. The messages in each conversation are ordered in reverse chronological order. A conversation with more recent messages may be ordered later in the <code>mlsConversations</code> collection than one with older messages that was initiated later.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td>Domain:</td>
-              <td><code>Object</code> (an ActivityPub <a href="https://www.w3.org/TR/activitypub/#actors">Actor</a>)</td>
-            </tr>
-            <tr>
-              <td>Range:</td>
-              <td><code>OrderedCollection</code></td>
-            </tr>
-            <tr>
-              <td>Functional:</td>
-              <td><code>true</code></td>
-            </tr>
-          </tbody>
-        </table>
-        <aside class="example">
-          <p>An ActivityPub actor with an <code>mlsKey</code> property.</p>
-          <pre class="json">
-          {
-            "@context": [
-              "https://www.w3.org/ns/activitystreams",
-              "https://purl.archive.org/socialweb/mls"
-            ],
-            "id": "https://example.com/users/alyssa",
-            "type": "Person",
-            "name": "Alyssa P. Hacker",
-            "inbox": "https://example.com/users/alyssa/inbox",
-            "outbox": "https://example.com/users/alyssa/outbox",
-            "followers": "https://example.com/users/alyssa/followers",
-            "following": "https://example.com/users/alyssa/following",
-            "liked": "https://example.com/users/alyssa/liked",
-            "mlsConversations": "https://example.com/users/alyssa/mlsConversations"
-          }
-          </pre>
-        </aside>
-      </section>
-
     </section>
-    <section id="conformance">
-      <p>
-        This is required for specifications that contain normative material.
-      </p>
+  </section>
+  <section id="security-considerations">
+    <h2>Security considerations</h2>
+    <p>These are notable security considerations with this
+    specification.</p>
+    <section id="html-sanitization">
+      <h3>HTML Sanitization</h3>
+      <p>Many of <a>content types</a> included in this
+      specification use HTML either for</p>
     </section>
-  </body>
+  </section>
+  <section id="conformance">
+    <p>This is required for specifications that contain normative
+    material.</p>
+  </section>
+</body>
 </html>
