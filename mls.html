@@ -438,7 +438,66 @@
         to content objects are not tracked by a server, but by each
         client individually. Consequently, these values should be
         unset.</li>
+        <li><code>attributedTo</code>. This can be derived from the
+        properties of the ActivityPub envelope and are not
+        required. If provided, it should be ignored.</li>
+        <li><code>to</code>, <code>cc</code>, and other addressing
+        properties. These can be derived from the properties of the
+        ActivityPub envelope and are not required.</li>
+        <li><code>tag</code>. <code>Mention</code> and
+        <code>Hashtag</code> object ids can be used to identify
+        topics or mentioned actors.</li>
       </ul>
+      <section id="content-object-examples">
+        <h4>Examples</h4>
+        <aside class="example" title="a Note object">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Note",
+              "id": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1",
+              "content": "<br>Hello, World!"
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="a Note object as a reply">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Note",
+              "id": "uri:uuid:C52C4A75-0EE2-4E2B-BDFA-3BEAC534A24D",
+              "inReplyTo": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1",
+              "content": "<br>Hello back!"
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="an Article object">
+          <p>For reasons of brevity, this example is not a long,
+          multiparagraph text.</p>
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Article",
+              "id": "uri:uuid:3298C3D5-E55E-4FAA-B365-5C81034CAF10",
+              "name": "A simple countdown",
+              "summary": "<br>This article counts down from five to one."
+              "content": "<br>Five!<br>Four!<br>Three!<br>Two!<br>One!"
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="an Image object">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "id": "uri:uuid:38B03587-CEA8-439B-AFCE-6CC3C69E51FD",
+              "type": "Image",
+              "name": "One-pixel PNG",
+              "mediaType": "image/png",
+              "content": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII="
+            }
+          </pre>
+        </aside>
+      </section>
     </section>
     <section id="activities">
       <h3>Activities</h3>
@@ -475,12 +534,12 @@
         <code>object</code> of a <code>Create</code> property
         previously.</li>
         <li><code>Announce</code> Shares the <code>object</code>
-        with the group. The <code>object</code> property should be
-        a node object. The <code>id</code> property can match an
-        object that was received as the <code>object</code> of a
-        <code>Create</code> property previously; alternately, it
-        can be an ActivityPub object with an HTTPS URL
-        <code>id</code>.</li>
+        with the group. The <code>object</code> property can be a
+        node object or a reference. The <code>id</code> property
+        can match an object that was received as the
+        <code>object</code> of a <code>Create</code> property
+        previously; alternately, it can be an ActivityPub object
+        with an HTTPS URL <code>id</code>.</li>
         <li><code>Undo</code> Undoes the activity that is the
         <code>object</code>. The <code>object</code> property can
         be a node object or a reference. The <code>id</code>
@@ -520,6 +579,109 @@
           should ignore and discard the activity.
         </li>
       </ul>
+      <section id="activity-examples">
+        <h4>Examples</h4>
+        <aside class="example" title="Create activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Create",
+              "id": "uri:uuid:C63C6A5C-68EE-4327-86CE-C1B1328B5F2F",
+              "object": {
+                "type": "Note",
+                "id": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1",
+                "content": "<p>Hello, World!</p>"
+              }
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="Update activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Update",
+              "id": "uri:uuid:FDD0D007-B229-4050-B770-EEA8C89A69D6",
+              "object": {
+                "type": "Note",
+                "id": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1",
+                "content": "<br>Hello, <s>World</s> Universe!"
+              }
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="Delete activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Delete",
+              "id": "uri:uuid:BDF97A60-7C46-465C-A98D-6134BEC1FEF3",
+              "object": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1"
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="Like activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Like",
+              "id": "uri:uuid:0DDF82B4-8632-4E20-85E1-547155C2618E",
+              "object": {
+                "type": "Article",
+                "id": "uri:uuid:3298C3D5-E55E-4FAA-B365-5C81034CAF10"
+              }
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="Announce activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Announce",
+              "id": "uri:uuid:34959BBB-511B-44DF-B925-F2FF5AA671D6",
+              "content": "Here's Jake's earlier message you might have missed, Janice",
+              "object": {
+                "type": "Note",
+                "id": "uri:uuid:C52C4A75-0EE2-4E2B-BDFA-3BEAC534A24D"
+              }
+            }
+          </pre>
+        </aside>
+        <aside class="example" title="Undo activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Undo",
+              "id": "uri:uuid:C5F83D10-0F05-406D-AEAA-970F96815A9B",
+              "object": {
+                "type": "Like",
+                "id": "uri:uuid:0DDF82B4-8632-4E20-85E1-547155C2618E"
+              }
+            }
+          </pre>
+        </aside>
+         <aside class="example" title="Read activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "Read",
+              "id": "uri:uuid:5865EF99-2675-4EFB-8D7E-1F1B62470676",
+              "object": {
+                "type": "Article",
+                "id": "uri:uuid:3298C3D5-E55E-4FAA-B365-5C81034CAF10"
+              }
+            }
+          </pre>
+        </aside>
+         <aside class="example" title="IntransitiveActivity activity">
+          <pre class="json">
+            {
+              "@context": "https://www.w3.org/ns/activitystreams",
+              "type": "IntransitiveActivity",
+              "id": "uri:uuid:AD1D2303-8CA8-416A-BDF7-E8A9FC368C54"
+            }
+          </pre>
+        </aside>
+      </section>
     </section>
     <section id="extensions">
       <h3>Extensions</h3>
