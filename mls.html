@@ -27,16 +27,15 @@
 </head>
 <body>
   <section id="abstract">
+    <h2>Abstract</h2>
     <p>This specification documents the use of Messaging Layer
     Security (MLS) over the ActivityPub API and federation
     protocol. MLS is a protocol for end-to-end encryption of group
     messaging. ActivityPub is a federated social networking
-    protocol. This specification describes how to use MLS to
-    encrypt messages sent over ActivityPub.</p>
+    protocol. This specification describes how to use ActivityPub
+    as a transport layer for MLS encrypted conversations.</p>
   </section>
-  <section id="sotd">
-    <p>This is required.</p>
-  </section>
+  <section id="sotd"></section>
   <section class="informative" id="introduction">
     <h2>Introduction</h2>
     <p>Messaging Layer Security (MLS) [[rfc9420]] is an end-to-end
@@ -62,16 +61,22 @@
       routing, persistence, and federation across servers. The JSON
       envelopes are conveyed directly across the ActivityPub
       network.</li>
-      <li>MLS as an encryption and signature layer. The MLS message
-      objects are embedded as base64-encoded binary objects within
-      the ActivityPub JSON envelopes.</li>
+      <li>MLS as an encryption and signature layer, as well as a
+      group management layer. MLS messages carry information such
+      as the formation of a group, adding and removing members of a
+      group, and changes to the shared encryption keys for the
+      group. The MLS message objects are embedded as base64-encoded
+      binary objects within the ActivityPub JSON envelopes.</li>
       <li>A limited profile of Activity Streams 2.0 for
       representing messages and conversations (see <a>application
       data</a>). This profile is <b>not</b> compatible with
       ActivityPub -- in particular, because object IDs in this
-      profile are not HTTPS URLs. These AS2 objects are embedded in
-      the <code>application_data</code> fields of MLS
-      PrivateMessage objects.
+      profile are not HTTPS URLs. ActivityPub servers do not manage
+      these objects, and are in fact unaware of their contents or
+      interrelationships -- which is the point of end-to-end
+      encryption, after all. These AS2 objects are embedded in the
+      <code>application_data</code> fields of MLS PrivateMessage
+      objects.
       </li>
     </ul>
     <p>This document is not an implementation manual for MLS over
@@ -153,33 +158,39 @@
           </pre>
       </aside>
       <p>Delivery of MLS objects over the ActivityPub network
-      requires addressing all recipients explicitly. See <a>Privacy
-      considerations</a> for more details.</p>
+      requires addressing all recipients explicitly. See <a href=
+      "#privacy-considerations">Privacy considerations</a> for more
+      details.</p>
       <p>Reading incoming messages is done through the actor's
-      <a>inbox</a> property. This is a collection of all activities
-      received by the actor,including but not exclusive to
-      activities related to MLS. ActivityPub does not support push
-      notifications, so MLS-enabled ActivityPub clients have to
-      periodically poll the inbox collection for new
-      activities.</p>
+      <a href="https://www.w3.org/TR/activitypub/#inbox">inbox</a>
+      property. This is a collection of all activities received by
+      the actor,including but not exclusive to activities related
+      to MLS. ActivityPub does not support push notifications, so
+      MLS-enabled ActivityPub clients have to periodically poll the
+      inbox collection for new activities.</p>
       <p>Other activities in the object lifecycle, such as
       reactions, updates, or deletions, should be handled as part
       of the <a>application data</a> within MLS private messages,
       and not as regular ActivityPub activities. So, for example,
       creating and updating an encrypted <code>Note</code> is
-      modeled as two <a>Create</a> activities -- one for the
-      creation, the second for the update.</p>
+      modeled as two <a href=
+      "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-create">
+      Create</a> activities -- one for the creation, the second for
+      the update.</p>
     </section>
     <section id="key-storage">
       <h3>Key storage</h3>
       <p>Each actor in the ActivityPub network has a public profile
-      with important protocol properties defined, such as
-      <a>inbox</a>, <a>following</a>, and
-      <a>preferredUsername</a>.</p>
+      with important protocol properties defined, such as <a href=
+      "https://www.w3.org/tr/activitypub/#inbox">inbox</a>,
+      <a href="https://www.w3.org/TR/activitypub/#following">following</a>,
+      and <a href=
+      "https://www.w3.org/TR/activitypub/#actor-objects">preferredUsername</a>.</p>
       <p>The set of currently valid <a>KeyPackage</a> objects for
       an actor are an additional property of the actor object,
-      <a>keyPackages</a>. Its value is an ActivityPub
-      <a>Collection</a> of KeyPackage objects.</p>
+      <a>keyPackages</a>. Its value is an ActivityPub <a href=
+      "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-collection">
+      Collection</a> of KeyPackage objects.</p>
       <aside class="example" title=
       "An actor with a keyPackages property">
         <pre class="json">
@@ -210,17 +221,24 @@
       its lifecycle:</p>
       <ol>
         <li>
-          <a>Create</a> to create the object
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-create">
+          Create</a> to create the object
         </li>
         <li>
-          <a>Add</a> to add it to the collection of valid key
-          packages
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-add">
+          Add</a> to add it to the collection of valid key packages
         </li>
         <li>
-          <a>Remove</a> to remove it from the collection
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-remove">
+          Remove</a> to remove it from the collection
         </li>
         <li>
-          <a>Delete</a> to delete it and make it unavailable
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-delete">
+          Delete</a> to delete it and make it unavailable
         </li>
       </ol>Create and Add must be strictly ordered; it's not
       possible to add a KeyPackage before creating it. Removal and
@@ -308,7 +326,8 @@
           </pre>
       </aside>
       <p>As with all ActivityPub objects, the KeyPackage can be
-      read in full using an HTTP GET request to the <a>id</a>
+      read in full using an HTTP GET request to the <a href=
+      "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-id">id</a>
       URL.</p>
     </section>
   </section>
@@ -330,7 +349,7 @@
     </ol>
   </section>
   <section id="application-data">
-    <h2>Application data</h2>
+    <h2><dfn class="export">Application data</dfn></h2>
     <p>MLS is agnostic about application data encrypted and sent
     over the network. To match the ActivityPub model, this
     specification defines the application data for use over MLS as
@@ -347,22 +366,37 @@
       <h3>Content objects</h3>
       <p>The Activity Vocabulary defines several document types for
       content. The following types are used in this
-      specification:</p>
+      specification.</p>
       <ul>
         <li>
-          <a>Note</a>
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-note">
+          Note</a> - for short text, about a paragraph or less,
+          like a microblogging post or a comment
         </li>
         <li>
-          <a>Article</a>
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-article">
+          Article</a> - for longer texts, about the length of a
+          magazine article or a blog post
         </li>
         <li>
-          <a>Image</a>
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-image">
+          Image</a> - two-dimensional images, like photos or
+          diagrams
         </li>
         <li>
-          <a>Audio</a>
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-audio">
+          Audio</a> - any sound files, like music, a sound effect,
+          or a podcast episode
         </li>
         <li>
-          <a>Video</a>
+          <a href=
+          "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-video">
+          Video</a> - moving images, like a movie, TV show, or
+          short
         </li>
       </ul>There are the following restrictions on the properties
       of the content objects:
@@ -413,9 +447,10 @@
       are defined in this document.</p>
       <ul>
         <li>
-          <code>Create</code> Introduces a new object. The
-          <code>object</code> property should be a <a>full
-          embedding</a> -- all properties represented as a JSON
+          <code>Create</code> Introduces a new object. The value of
+          the <code>object</code> property should be a <a href=
+          "https://www.w3.org/TR/json-ld11/#node-objects">node
+          object</a> -- all properties represented as a JSON
           object. The <code>id</code> of the object must be unique.
         </li>
         <li><code>Update</code> Updates the properties of an
@@ -427,7 +462,7 @@
         activity can send an <code>Update</code> for the same
         object.</li>
         <li><code>Delete</code> Deletes an existing object. The
-        <code>object</code> property can be a full embedding or a
+        <code>object</code> property can be a node object or a
         reference. The <code>id</code> property must match an
         object that was received as the <code>object</code> of a
         <code>Create</code> property previously. Only the sender of
@@ -435,20 +470,20 @@
         <code>Delete</code> for the same object.</li>
         <li><code>Like</code> Indicates that the sender likes the
         <code>object</code>. The <code>object</code> property can
-        be a full embedding or a reference. The <code>id</code>
+        be a node object or a reference. The <code>id</code>
         property must match an object that was received as the
         <code>object</code> of a <code>Create</code> property
         previously.</li>
         <li><code>Announce</code> Shares the <code>object</code>
         with the group. The <code>object</code> property should be
-        a full embedding. The <code>id</code> property can match an
+        a node object. The <code>id</code> property can match an
         object that was received as the <code>object</code> of a
         <code>Create</code> property previously; alternately, it
         can be an ActivityPub object with an HTTPS URL
         <code>id</code>.</li>
         <li><code>Undo</code> Undoes the activity that is the
         <code>object</code>. The <code>object</code> property can
-        be a full embedding or a reference. The <code>id</code>
+        be a node object or a reference. The <code>id</code>
         property must match an activity that was received
         previously. Only the sender of the previous activity can
         undo it. Undoing a <code>Like</code> activity shows that
@@ -610,12 +645,12 @@
     <section id="types">
       <h3>Types</h3>
       <p>There are five types defined in this context.</p>
-      <section id="PublicMessage" data-dfn-for="PublicMessage">
-        <h3>PublicMessage</h3>
+      <section id="PublicMessage">
+        <h3><dfn class="export">PublicMessage</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#PublicMessage</code><br>
 
@@ -673,12 +708,12 @@
             </pre>
         </aside>
       </section>
-      <section id="PrivateMessage" data-dfn-for="PrivateMessage">
-        <h3>PrivateMessage</h3>
+      <section id="PrivateMessage">
+        <h3><dfn class="export">PrivateMessage</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#PrivateMessage</code><br>
 
@@ -736,12 +771,12 @@
             </pre>
         </aside>
       </section>
-      <section id="KeyPackage" data-dfn-for="KeyPackage">
-        <h3>KeyPackage</h3>
+      <section id="KeyPackage">
+        <h3><dfn class="export">KeyPackage</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#KeyPackage</code><br>
 
@@ -796,12 +831,12 @@
           </pre>
         </aside>
       </section>
-      <section id="GroupInfo" data-dfn-for="GroupInfo">
-        <h3>GroupInfo</h3>
+      <section id="GroupInfo">
+        <h3><dfn class="export">GroupInfo</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#GroupInfo</code><br>
 
@@ -856,12 +891,12 @@
           </pre>
         </aside>
       </section>
-      <section id="Welcome" data-dfn-for="Welcome">
-        <h3>Welcome</h3>
+      <section id="Welcome">
+        <h3><dfn class="export">Welcome</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#Welcome</code><br>
 
@@ -920,15 +955,14 @@
     <section id="properties">
       <h3>Properties</h3>
       <p>There are two properties defined in the namespace.</p>
-      <section id="encoding" data-dfn-for="encoding">
-        <h3>encoding</h3>
+      <section id="encoding">
+        <h3><dfn class="export">encoding</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#encoding</code><br>
-
               <code>mls:encoding</code><br>
               <code>encoding</code></td>
             </tr>
@@ -937,7 +971,8 @@
               <td>
                 <p>The <code>encoding</code> property represents
                 the encoding for the <code>content</code> property,
-                similar to the <a>Content-Transfer-Encoding</a>
+                similar to the <a href=
+                "https://www.ietf.org/rfc/rfc2045.html#section-6">Content-Transfer-Encoding</a>
                 header in email and HTTP messages.</p>
               </td>
             </tr>
@@ -948,7 +983,8 @@
             <tr>
               <td>Range:</td>
               <td>
-                String; values for <a>Content-Transfer-Encoding</a>
+                String; values for <a href=
+                "https://www.ietf.org/rfc/rfc2045.html#section-6">Content-Transfer-Encoding</a>
                 in [[rfc2045]]
               </td>
             </tr>
@@ -976,12 +1012,12 @@
             </pre>
         </aside>
       </section>
-      <section id="keyPackages" data-dfn-for="keyPackages">
-        <h3>keyPackages</h3>
+      <section id="keyPackages">
+        <h3><dfn class="export">keyPackages</dfn></h3>
         <table>
           <tbody>
             <tr>
-              <td width="10%">URI:</td>
+              <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#keyPackages</code><br>
 
@@ -1046,13 +1082,25 @@
     specification.</p>
     <section id="html-sanitization">
       <h3>HTML Sanitization</h3>
-      <p>Many of <a>content types</a> included in this
-      specification use HTML either for</p>
+      <p>Many of the <a href="#content-objects">content types</a>
+      included in the application data for this specification use
+      HTML either for the <code>summary</code> or
+      <code>content</code> properties. Attackers can use features
+      of HTML5, like JavaScript and CSS, to cause problems in the
+      users' browsers. One mitigation is to sanitize the HTML,
+      removing elements and attributes that can be problematic for
+      users.</p>
+      <p>In ActivityPub, many servers will sanitize HTML for
+      content as it arrives at the server, so that clients can use
+      the content without security concerns. Because the encrypted
+      application data in this specification is not visible to the
+      ActivityPub server, it is up to the client application to
+      sanitize the HTML.</p>
+    </section>
+    <section id="privacy-considerations">
+      <h2>Privacy considerations</h2>
     </section>
   </section>
-  <section id="conformance">
-    <p>This is required for specifications that contain normative
-    material.</p>
-  </section>
+  <section id="conformance"></section>
 </body>
 </html>
