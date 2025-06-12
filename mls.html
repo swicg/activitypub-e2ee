@@ -510,6 +510,15 @@
         match an object that was received as the
         <code>object</code> of a <code>Create</code> property
         previously.</li>
+        <li>
+          <code>IntransitiveActivity</code>. This is a base
+          activity type defined in the Activity Vocabulary. For
+          this specification, an <code>IntransitiveActivity</code>
+          object can be sent as a null message, which can obscure
+          messaging patterns (see <a href=
+          "#metadata-leakage">Metadata leakage</a>). Recipients
+          should ignore and discard the activity.
+        </li>
       </ul>
     </section>
     <section id="extensions">
@@ -963,6 +972,7 @@
               <td>URI:</td>
               <td>
               <code>https://purl.archive.org/socialweb/mls#encoding</code><br>
+
               <code>mls:encoding</code><br>
               <code>encoding</code></td>
             </tr>
@@ -1053,7 +1063,7 @@
           </tbody>
         </table>
         <aside class="example">
-          <p>An ActivityPub actor with an <code>keyPackages</code>
+          <p>An ActivityPub actor with a <code>keyPackages</code>
           property.</p>
           <pre class="json">
             {
@@ -1097,8 +1107,82 @@
       ActivityPub server, it is up to the client application to
       sanitize the HTML.</p>
     </section>
-    <section id="privacy-considerations">
-      <h2>Privacy considerations</h2>
+    <section id="key-substitution">
+      <h3>Key Substitution</h3>
+      <p>The <a>keyPackages</a> collection used in this document
+      for sharing and confirming cryptographic keys is easy to
+      implement and use. However, because the collection is managed
+      by the actor's server, the collection is subject to a key
+      substitution attack. A malicious server can add one of its
+      own keys to the collection, or replace one of the keys with
+      its own. Sophisticated attackers would present different
+      <code>keyPackages</code> collection contents to different
+      clients.</p>
+      <p>One mitigation for this attack is key-fingerprint
+      verification, in which participants in a group compare the
+      fingerprints they see for keys for an identity.</p>
+    </section>
+    <section id="private-key-storage">
+      <h3>Private key storage</h3>
+      <p>The private keys created by clients and used for
+      encryption and signatures in the MLS framework are crucial to
+      the security of the system. Compromise of the key through
+      physical or remote access to the device could expose
+      encrypted data in the server-stored messages. To mitigate
+      this risk, client applications should make use of platform
+      services for secure key storage where available. If keys must
+      be stored on disk, they should be encrypted with a password
+      under the user's control.</p>
+    </section>
+    <section id="plaintext-storage">
+      <h3>Plaintext storage</h3>
+      <p>Rebuilding group state and dencrypted message content from
+      server-stored MLS message data in the <code>inbox</code> can
+      be time-consuming. Therefore, many clients will persist that
+      state and decrypted content on the client side. But physical
+      or remote access to the client device could expose that
+      decrypted content to an attacker.</p>
+      <p>One mitigation for this risk is to store decrypted content
+      locally in an encrypted file or drive volume, with the
+      encryption key stored in the platform's secure storage, or
+      with a password under the user's control.</p>
+    </section>
+  </section>
+  <section id="privacy-considerations">
+    <h2>Privacy considerations</h2>
+    <section id="metadata-leakage">
+      <h3>Metadata leakage</h3>
+      <p>The binary MLS objects used in this specification have
+      strong encryption to protect the contents from servers. The
+      ActivityPub envelopes used for their delivery, however, can
+      be inspected by servers along the delivery path -- the
+      sending actor's server and the receiving actors' servers.</p>
+      <p>There is metadata in the envelopes that can be used by an
+      observer to draw conclusions about the conversations.</p>
+      <ul>
+        <li><strong>Sender and recipients</strong>. These
+        addressing properties are necessary for the delivery of
+        ActivityPub objects.</li>
+        <li><strong>Timestamps</strong>. Timestamps are added by
+        the sender's server and forwarded to other servers. They
+        can be used to analyse patterns in the conversation. One
+        mitigation is to add random dummy messages with the
+        <code>IntransitiveActivity</code> activity type (see
+        above), which can obscure the real patterns in
+        conversations.</li>
+        <li>
+          <strong>Message size</strong>. The size of the
+          <code>PrivateMessage</code> objects can give a signal for
+          what the contents of the message are. For example, a
+          <code>Like</code> activity which uses the object's ID URI
+          as a property value would be smaller than a
+          <code>Create</code> activity with an embedded node object
+          as the <code>object</code> property value. MLS provides
+          <a href=
+          "https://www.rfc-editor.org/rfc/rfc9420.html#section-15.1">
+          padding</a> feature to mitigate this problem.
+        </li>
+      </ul>
     </section>
   </section>
   <section id="conformance"></section>
