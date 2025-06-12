@@ -69,14 +69,15 @@
       binary objects within the ActivityPub JSON envelopes.</li>
       <li>A limited profile of Activity Streams 2.0 for
       representing messages and conversations (see <a>application
-      data</a>). This profile is <b>not</b> compatible with
-      ActivityPub -- in particular, because object IDs in this
-      profile are not HTTPS URLs, nor even dereferenceable URIs.
-      ActivityPub servers do not manage these objects, and are in
-      fact unaware of their contents or interrelationships -- which
-      is the point of end-to-end encryption, after all. These AS2
-      objects are embedded in the <code>application_data</code>
-      fields of MLS PrivateMessage objects.
+      data</a>). The embedded AS2 content objects are intentionally
+      not compliant with ActivityPub rules for objects -- in
+      particular, because object IDs in this profile are not HTTPS
+      URLs, nor even dereferenceable URIs. ActivityPub servers do
+      not manage these objects, and are in fact unaware of their
+      contents or interrelationships -- which is the point of
+      end-to-end encryption, after all. These AS2 objects are
+      embedded in the <code>application_data</code> fields of MLS
+      PrivateMessage objects.
       </li>
     </ul>
     <p>This document is not an implementation manual for MLS over
@@ -157,8 +158,13 @@
             }
           </pre>
       </aside>
-      <p>Delivery of MLS objects over the ActivityPub network
-      requires addressing all recipients explicitly. See <a href=
+      <p>Because managing group membership is an essential part of
+      the MLS protocol, delivery of MLS objects over the
+      ActivityPub network requires addressing all recipients
+      explicitly. Only actors can be recipients. Clients must not
+      address MLS messages to collections, such as to the actor's
+      <code>followers</code> collection or to the
+      <code>as:Public</code> collection. See <a href=
       "#privacy-considerations">Privacy considerations</a> for more
       details.</p>
       <p>Reading incoming messages is done through the actor's
@@ -240,10 +246,11 @@
           "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-delete">
           Delete</a> to delete it and make it unavailable
         </li>
-      </ol>Create and Add must be strictly ordered; it's not
+      </ol>
+      <p>Create and Add must occur in that sequence; it's not
       possible to add a KeyPackage before creating it. Removal and
       Deletion are less strictly ordered; a key package can be
-      removed, then deleted, or vice versa.
+      removed first and deleted later, or vice versa.</p>
       <aside class="example" title="Creating a key package">
         <pre class="json">
           {
@@ -539,7 +546,9 @@
         can match an object that was received as the
         <code>object</code> of a <code>Create</code> property
         previously; alternately, it can be an ActivityPub object
-        with an HTTPS URL <code>id</code>.</li>
+        with an HTTPS URL <code>id</code>. The latter case allows
+        sharing public content into a private chat for discussion,
+        possibly with a comment.</li>
         <li><code>Undo</code> Undoes the activity that is the
         <code>object</code>. The <code>object</code> property can
         be a node object or a reference. The <code>id</code>
@@ -555,20 +564,27 @@
         embedding or a reference. The <code>id</code> property must
         match an object that was received as the
         <code>object</code> of a <code>Create</code> property
-        previously.</li>
+        previously. (<code>Read</code> is an activity type from the
+        Activity Vocabulary that is not described in detail in the
+        ActivityPub specification.)</li>
         <li><code>Listen</code>. Indicates that the sender has
         listened to an <code>Audio</code> object. The
         <code>object</code> property should be a partial embedding
         or a reference. The <code>id</code> property must match an
         object that was received as the <code>object</code> of a
-        <code>Create</code> property previously.</li>
+        <code>Create</code> property previously.
+        (<code>Listen</code> is an activity type from the Activity
+        Vocabulary that is not described in detail in the
+        ActivityPub specification.)</li>
         <li><code>View</code>. Indicates that the sender has viewed
         an <code>Image</code> object or <code>Video</code> object.
         The <code>object</code> property should be a partial
         embedding or a reference. The <code>id</code> property must
         match an object that was received as the
         <code>object</code> of a <code>Create</code> property
-        previously.</li>
+        previously. (<code>View</code> is an activity type from the
+        Activity Vocabulary that is not described in detail in the
+        ActivityPub specification.)</li>
         <li>
           <code>IntransitiveActivity</code>. This is a base
           activity type defined in the Activity Vocabulary. For
@@ -577,6 +593,9 @@
           messaging patterns (see <a href=
           "#metadata-leakage">Metadata leakage</a>). Recipients
           should ignore and discard the activity.
+          (<code>IntransitiveActivity</code> is an activity type
+          from the Activity Vocabulary that is not described in
+          detail in the ActivityPub specification.)
         </li>
       </ul>
       <section id="activity-examples">
@@ -590,7 +609,7 @@
               "object": {
                 "type": "Note",
                 "id": "uri:uuid:CFCD9E78-03E4-404E-A7A8-3E17A78EC4E1",
-                "content": "<p>Hello, World!</p>"
+                "content": "<br>Hello, World!"
               }
             }
           </pre>
@@ -659,7 +678,7 @@
             }
           </pre>
         </aside>
-         <aside class="example" title="Read activity">
+        <aside class="example" title="Read activity">
           <pre class="json">
             {
               "@context": "https://www.w3.org/ns/activitystreams",
@@ -672,7 +691,8 @@
             }
           </pre>
         </aside>
-         <aside class="example" title="IntransitiveActivity activity">
+        <aside class="example" title=
+        "IntransitiveActivity activity">
           <pre class="json">
             {
               "@context": "https://www.w3.org/ns/activitystreams",
