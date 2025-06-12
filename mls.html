@@ -71,12 +71,12 @@
       representing messages and conversations (see <a>application
       data</a>). This profile is <b>not</b> compatible with
       ActivityPub -- in particular, because object IDs in this
-      profile are not HTTPS URLs. ActivityPub servers do not manage
-      these objects, and are in fact unaware of their contents or
-      interrelationships -- which is the point of end-to-end
-      encryption, after all. These AS2 objects are embedded in the
-      <code>application_data</code> fields of MLS PrivateMessage
-      objects.
+      profile are not HTTPS URLs, nor even dereferenceable URIs.
+      ActivityPub servers do not manage these objects, and are in
+      fact unaware of their contents or interrelationships -- which
+      is the point of end-to-end encryption, after all. These AS2
+      objects are embedded in the <code>application_data</code>
+      fields of MLS PrivateMessage objects.
       </li>
     </ul>
     <p>This document is not an implementation manual for MLS over
@@ -1189,8 +1189,13 @@
   <section id="changelog">
     <h2>Changelog</h2>
     <ul>
-      <li>11 Jun 2025: Revised version focused on embedding binary MLS message objects in ActivityPub wrappers. Added application data model, security and privacy considerations; removed use cases to focus on more technical goal of implementing MLS over ActivityPub.</li>
-      <li>22 Nov 2024: Early version with use cases, context, types and properties.</li>
+      <li>11 Jun 2025: Revised version focused on embedding binary
+      MLS message objects in ActivityPub wrappers. Added
+      application data model, security and privacy considerations;
+      removed use cases to focus on more technical goal of
+      implementing MLS over ActivityPub.</li>
+      <li>22 Nov 2024: Early version with use cases, context, types
+      and properties.</li>
     </ul>
   </section>
 </body>
