@@ -149,9 +149,9 @@
                 "id": "https://social.example/user/example1/privatemessage/1",
                 "attributedTo": "https://social.example/user/example1",
               "to": ["https://other.example/user/example2","https://third.example/user/example3"],
-                "summary": "This is an encrypted private message. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these."
+                "summary": "This is an encrypted private message. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these.",
                 "mediaType": "message/mls",
-                "encoding": "base64"
+                "encoding": "base64",
                 "content": "[base64-encoded private message object]"
               }
             }
@@ -260,9 +260,9 @@
               "id": "https://social.example/user/example1/keyPackage/C",
               "attributedTo": "https://social.example/user/example1",
               "to": "as:Public",
-              "summary": "This is binary-encoded cryptographic key package. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these."
+              "summary": "This is binary-encoded cryptographic key package. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these.",
               "mediaType": "message/mls",
-              "encoding": "base64"
+              "encoding": "base64,
               "content": "[base64-encoded private message object]",
               "generator": {
                 "id": "https://client.example/actor",
@@ -480,7 +480,7 @@
               "type": "Article",
               "id": "uri:uuid:3298C3D5-E55E-4FAA-B365-5C81034CAF10",
               "name": "A simple countdown",
-              "summary": "<br>This article counts down from five to one."
+              "summary": "<br>This article counts down from five to one.",
               "content": "<br>Five!<br>Four!<br>Three!<br>Two!<br>One!"
             }
           </pre>
