@@ -64,35 +64,27 @@
       <li>Modifying cryptographic state of the group chat</li>
       <li>Verifying the modifications of others.</li>
     </ul>
+    <h3>Overview of the data structure</h3>
     <p>The data structure of an ActivityPub message that is end-to-end
-    with MLS would be constructed by the client in the following way:</p>
-    <ul>
+    with MLS would be constructed by the client in the following way
+    from creating the message, to enciphering to sending:</p>
+    <ol>
+      <li>The encrypted message payload itself then follows ActivityPub
+      post formats with AS2 that can then be rendered by the client.</li>
+      <li>MLS as an encryption and signature layer for each message.
+      The MLS message objects are embedded as base64-encoded
+      binary objects within the ActivityPub JSON envelopes.</li>
       <li>ActivityPub as an envelope data structure, to ensure data
       routing, persistence, and federation across servers. The JSON
       envelopes are conveyed directly across the ActivityPub
       network.</li>
-      <li>MLS as an encryption and signature layer for each message.
-      The MLS message objects are embedded as base64-encoded
-      binary objects within the ActivityPub JSON envelopes.</li>
-      <li>The encrypted message payload itself then follows ActivityPub
-      post formats with AS2 that can then be rendered by the client.</li>
-    </ul>
+    </ol>
     <p>The data structure of ActivityPub posts that support the
     group management layer of MLS (ActivityPub servers do
       not manage these objects, and are in fact unaware of their
       contents or interrelationships -- which is the point of
       end-to-end encryption, after all):
-    <ul>
-      <li>ActivityPub as an envelope data structure, to ensure data
-      routing, persistence, and federation across servers. The JSON
-      envelopes are conveyed directly across the ActivityPub
-      network.</li>
-      <li>MLS requires specific posts to be sent that are not messages
-      but that carry information that the client needs in order to
-      maintain cryptographic state of the group such as the formation
-      of a group, adding and removing members of a group, and changes
-      to the shared encryption keys for the group. These changes may or
-      may not appear as system messsages to the users in the group chat.</li>
+    <ol>
       <li>A limited profile of Activity Streams 2.0 for
       representing messages and conversations (see <a>application
       data</a>). The embedded AS2 content objects are intentionally
@@ -101,7 +93,18 @@
       URLs, nor even dereferenceable URIs. These AS2 objects are
       embedded in the <code>application_data</code> fields of MLS
       PrivateMessage objects.</li>
-    </ul>
+      <li>MLS requires specific posts to be sent that are not messages
+      but that carry information that the client needs in order to
+      maintain cryptographic state of the group such as the formation
+      of a group, adding and removing members of a group, and changes
+      to the shared encryption keys for the group. These changes may or
+      may not appear as system messsages to the users in the group chat.
+      Crucially these messages are not encrypted.</li>
+      <li>ActivityPub as an envelope data structure, to ensure data
+      routing, persistence, and federation across servers. The JSON
+      envelopes are conveyed directly across the ActivityPub
+      network.</li>
+    </ol>
     <p>This document provides an overview of the interaction between 
     MLS and ActivityPub and specifies requisite server extensions.
     However, this is not an implementation manual for MLS in
