@@ -4,6 +4,7 @@ Coordination of work on end-to-end encryption with ActivityPub.
 
 - [Architectural variations](architectural-variations.md)
 - [Integration models](integration-models.md)
+- [MLS over ActivityPub](mls.html)
 
 ## License
 
