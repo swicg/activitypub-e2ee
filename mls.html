@@ -4,7 +4,7 @@
   <meta name="generator" content=
   "HTML Tidy for HTML5 for Apple macOS version 5.8.0">
   <meta charset="utf-8">
-  <title>Messaging Layer Security over ActivityPub</title>
+  <title>Messaging Layer Security in ActivityPub</title>
   <script src="https://www.w3.org/Tools/respec/respec-w3c" class=
   "remove" defer></script>
   <script class="remove">
@@ -29,61 +29,88 @@
   <section id="abstract">
     <h2>Abstract</h2>
     <p>This specification documents the use of Messaging Layer
-    Security (MLS) over the ActivityPub API and federation
-    protocol. MLS is a protocol for end-to-end encryption of group
-    messaging. ActivityPub is a federated social networking
+    Security (MLS) in the ActivityPub API and
+    protocol. MLS is a protocol for end-to-end encryption of 1-1 and group
+    communications. ActivityPub is a federated social networking
     protocol. This specification describes how to use ActivityPub
-    as a transport layer for MLS encrypted conversations.</p>
+    clients to exchange MLS-encrypted messages.</p>
   </section>
   <section id="sotd"></section>
   <section class="informative" id="introduction">
     <h2>Introduction</h2>
     <p>Messaging Layer Security (MLS) [[rfc9420]] is an end-to-end
-    encrypted messaging framework. It is designed to work with
-    different lower-level protocols which provide necessary
-    services for transporting data around the network.</p>
+    encrypted messaging protocol. It is designed to work with
+    different implementations in terms of "how protected messages 
+    are delivered, contents of protected messages, and 
+    identity/authentication infrastructures." [[rfc9750]]</p>
     <p>[[ActivityPub]] is the W3C social networking standard. It
     defines an API for client to server interactions and a
     federation protocol for server to server communications.
     ActivityPub's native data format is Activity Streams 2.0 (AS2)
     [[activitystreams-core]], an extensible [[JSON-LD]] vocabulary
     for common social network objects and activities.</p>
-    <p>This document describes the interfaces between MLS and
-    ActivityPub. In particular, it explains how ActivityPub can
-    provide the Delivery Service and Authentication Service
-    features of MLS, as described in the MLS Architecture
-    [[rfc9750]]. It provides an extension to the AS2 Activity
-    Vocabulary for supporting these features.</p>
-    <p>The data structure of this specification follows a
-    three-layer model:</p>
+    <p>This document describes how ActivityPub can
+    provide the Delivery Service, Authentication Service
+    and extends the AS2 Activity Vocabulary for supporting
+    the features specified in the MLS protocol. In short,
+    ActivityPub servers need only extend support for federated key
+    delivery. All other specified functions are implemented by
+    ActivityPub clients:</p>
     <ul>
+      <li>Generating KeyPackages</li>
+      <li>Encrypting and decrypting messages</li>
+      <li>Constructing ActivityPub messages containing ciphertext
+      to members of a group (see data structure below)</li>
+      <li>Modifying cryptographic state of the group chat</li>
+      <li>Verifying the modifications of others.</li>
+    </ul>
+    <h3>Overview of the data structure</h3>
+    <p>The data structure of an ActivityPub message that is end-to-end
+    with MLS would be constructed by the client in the following way
+    from creating the message, to enciphering, to sending:</p>
+    <ol>
+      <li>The encrypted message payload itself then follows ActivityPub
+      post formats with AS2 that can then be rendered by the client.</li>
+      <li>MLS as an encryption and signature layer for each message.
+      The MLS message objects are embedded as base64-encoded
+      binary objects within the ActivityPub JSON envelopes.</li>
       <li>ActivityPub as an envelope data structure, to ensure data
       routing, persistence, and federation across servers. The JSON
       envelopes are conveyed directly across the ActivityPub
       network.</li>
-      <li>MLS as an encryption and signature layer, as well as a
-      group management layer. MLS messages carry information such
-      as the formation of a group, adding and removing members of a
-      group, and changes to the shared encryption keys for the
-      group. The MLS message objects are embedded as base64-encoded
-      binary objects within the ActivityPub JSON envelopes.</li>
+    </ol>
+    <p>The data structure of ActivityPub posts that support the
+    group management layer of MLS (ActivityPub servers do
+      not manage these objects, and are in fact unaware of their
+      contents or interrelationships -- which is the point of
+      end-to-end encryption, after all):
+    <ol>
       <li>A limited profile of Activity Streams 2.0 for
       representing messages and conversations (see <a>application
       data</a>). The embedded AS2 content objects are intentionally
       not compliant with ActivityPub rules for objects -- in
       particular, because object IDs in this profile are not HTTPS
-      URLs, nor even dereferenceable URIs. ActivityPub servers do
-      not manage these objects, and are in fact unaware of their
-      contents or interrelationships -- which is the point of
-      end-to-end encryption, after all. These AS2 objects are
+      URLs, nor even dereferenceable URIs. These AS2 objects are
       embedded in the <code>application_data</code> fields of MLS
-      PrivateMessage objects.
-      </li>
-    </ul>
-    <p>This document is not an implementation manual for MLS over
-    ActivityPub. Instead, it attempts to provide a minimal
-    interaction layer between the two frameworks. Implementers
-    should be familiar with both MLS and ActivityPub.</p>
+      PrivateMessage objects.</li>
+      <li>MLS requires specific posts to be sent that are not messages
+      but that carry information that the client needs in order to
+      maintain cryptographic state of the group such as the formation
+      of a group, adding and removing members of a group, and changes
+      to the shared encryption keys for the group. These changes may or
+      may not appear as system messsages to the users in the group chat.
+      Crucially these messages are not encrypted.</li>
+      <li>ActivityPub as an envelope data structure, to ensure data
+      routing, persistence, and federation across servers. The JSON
+      envelopes are conveyed directly across the ActivityPub
+      network.</li>
+    </ol>
+    <p>This document provides an overview of the interaction between 
+    MLS and ActivityPub and specifies requisite server extensions.
+    However, this is not an implementation manual for MLS in
+    ActivityPub clients. Instead, client implementers should be
+    familiar with both MLS and ActivityPub before attempting
+    an implementation of end-to-end encrypted messages between their users.</p>
   </section>
   <section id="delivery-service">
     <h2>Delivery Service</h2>
