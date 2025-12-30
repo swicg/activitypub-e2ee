@@ -1266,6 +1266,71 @@
           </pre>
         </aside>
       </section>
+      <section id="messages">
+        <h3><dfn class="export">messages</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#messages</code><br>
+
+              <code>mls:messages</code><br>
+              <code>messages</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The value of the <code>messages</code> property is an <code>OrderedCollection</code> of all the MLS-related activities that an actor has received in their <code>inbox</code>. Like the <code>inbox</code>, it is sorted in reverse chronological order (latest activities first).</p>
+                <p>Without this property, the messaging client needs to scan the <code>inbox</code> for messaging-related activities.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td>
+                <code>Object</code> (an ActivityPub <a href=
+                "https://www.w3.org/TR/activitypub/#actors">Actor</a>)
+              </td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>OrderedCollection</code></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An ActivityPub actor with a <code>messages</code>
+          property.</p>
+          <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "id": "https://example.com/users/alyssa",
+              "type": "Person",
+              "name": "Alyssa P. Hacker",
+              "inbox": "https://example.com/users/alyssa/inbox",
+              "outbox": "https://example.com/users/alyssa/outbox",
+              "followers": "https://example.com/users/alyssa/followers",
+              "following": "https://example.com/users/alyssa/following",
+              "liked": "https://example.com/users/alyssa/liked",
+              "messages": {
+                "type": "OrderedCollection",
+                "id": "https://example.com/users/alyssa/messages",
+                "totalItems": 20018,
+                "first": "https://example.com/users/alyssa/messages/75geefBI",
+                "current": "https://example.com/users/alyssa/messages/75geefBI",
+                "last": "https://example.com/users/alyssa/messages/ZcbaTBMI"
+              }
+            }
+          </pre>
+        </aside>
+      </section>
     </section>
   </section>
   <section id="security-considerations">
