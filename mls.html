@@ -180,7 +180,9 @@
                 "summary": "This is an encrypted private message. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these.",
                 "mediaType": "message/mls",
                 "encoding": "base64",
-                "content": "[base64-encoded private message object]"
+                "content": "[base64-encoded private message object]",
+                "conversation": "https://social.example/user/example1/collections/18",
+                "context": "https://social.example/user/example1/collections/18"
               }
             }
           </pre>
@@ -212,6 +214,7 @@
       "https://www.w3.org/TR/activitystreams-vocabulary/#dfn-create">
       Create</a> activities -- one for the creation, the second for
       the update.</p>
+      <p>Ordering of MLS messages is important for maintaining cryptographic state. MLS message objects SHOULD include a <a href="#conversation">conversation</a> property, which is an <code>OrderedCollection</code> maintained by the server including all messages within a group. MLS message objects MAY include a <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-context">context</a> property with the same <code>OrderedCollection</code>.</p>
     </section>
     <section id="key-storage">
       <h3>Key storage</h3>
@@ -1417,6 +1420,63 @@
                 "current": "https://example.com/users/alyssa/messages/75geefBI",
                 "last": "https://example.com/users/alyssa/messages/ZcbaTBMI"
               }
+            }
+          </pre>
+        </aside>
+      </section>
+      <section id="conversation">
+        <h3><dfn class="export">conversation</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#conversation</code><br>
+
+              <code>mls:conversation</code><br>
+              <code>conversation</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The value of the <code>conversation</code> property is an <code>OrderedCollection</code> of all the MLS-related activities delivered to an MLS group. The conversation collection is maintained on the server or by a client. The conversation property can be used to determine the proper ordering of messages, particularly if they have cryptographic importance.
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td>
+                <code>Object</code> (an ActivityPub <a href=
+                "https://www.w3.org/TR/activitypub/#actors">Actor</a>)
+              </td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>OrderedCollection</code></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An MLS private message with a <code>conversation</code>
+          property.</p>
+          <pre class="json">
+            {
+              "@context": [
+                "https://www.w3.org/ns/activitystreams",
+                "https://purl.archive.org/socialweb/mls"
+              ],
+              "type": ["Object", "PrivateMessage"],
+              "id": "https://social.example/user/example1/privatemessage/1",
+              "attributedTo": "https://social.example/user/example1",
+            "to": ["https://other.example/user/example2","https://third.example/user/example3"],
+              "summary": "This is an encrypted private message. See https://swicg.github.io/activitypub-e2ee/ for information about how to read messages like these.",
+              "mediaType": "message/mls",
+              "encoding": "base64",
+              "content": "[base64-encoded private message object]",
+              "conversation": "https://social.example/user/example1/collections/18"
             }
           </pre>
         </aside>

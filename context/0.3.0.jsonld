@@ -29,5 +29,9 @@
   "messages": {
     "@id": "mls:messages",
     "@type": "@id"
+  },
+  "conversation": {
+    "@id": "mls:conversation",
+    "@type": "@id"
   }
 }
