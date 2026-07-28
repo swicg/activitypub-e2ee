@@ -40,8 +40,8 @@
     <h2>Introduction</h2>
     <p>Messaging Layer Security (MLS) [[rfc9420]] is an end-to-end
     encrypted messaging protocol. It is designed to work with
-    different implementations in terms of "how protected messages 
-    are delivered, contents of protected messages, and 
+    different implementations in terms of "how protected messages
+    are delivered, contents of protected messages, and
     identity/authentication infrastructures." [[rfc9750]]</p>
     <p>[[ActivityPub]] is the W3C social networking standard. It
     defines an API for client to server interactions and a
@@ -105,7 +105,7 @@
       envelopes are conveyed directly across the ActivityPub
       network.</li>
     </ol>
-    <p>This document provides an overview of the interaction between 
+    <p>This document provides an overview of the interaction between
     MLS and ActivityPub and specifies requisite server extensions.
     However, this is not an implementation manual for MLS in
     ActivityPub clients. Instead, client implementers should be
@@ -1172,7 +1172,7 @@
     </section>
     <section id="properties">
       <h3>Properties</h3>
-      <p>There are two properties defined in the namespace.</p>
+      <p>There are three properties defined in the namespace.</p>
       <section id="encoding">
         <h3><dfn class="export">encoding</dfn></h3>
         <table>
@@ -1290,6 +1290,67 @@
               "liked": "https://example.com/users/alyssa/liked",
               "keyPackages": "https://example.com/users/alyssa/key"
             }
+          </pre>
+        </aside>
+      </section>
+      <section id="ciphersuite">
+        <h3><dfn class="export">ciphersuite</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#ciphersuite</code><br>
+
+              <code>mls:ciphersuite</code><br>
+              <code>ciphersuite</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The <code>ciphersuite</code> property represents
+                the ciphersuite for a key package. It is the string name of the ciphersuite, as defined in the <a href="https://www.iana.org/assignments/mls/mls.xhtml#mls-ciphersuites">MLS Cipher Suites</a> registry.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td>
+                <code>KeyPackage</code>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><code>Key</code></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An ActivityPub actor with a <code>keyPackages</code>
+          property.</p>
+          <pre class="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/keypackage/1",
+            "type": "KeyPackage",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "as:Public",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a key package in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "ciphersuite": "MLS_128_DHKEMP256_AES128GCM_SHA256_P256",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
           </pre>
         </aside>
       </section>
