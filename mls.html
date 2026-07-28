@@ -195,12 +195,14 @@
       "#privacy-considerations">Privacy considerations</a> for more
       details.</p>
       <p>Reading incoming messages is done through the actor's
+      <a href="#messages">messages</a> collection. This is a collection of all MLS-related activities received by the actor.</p>
+      <p>In the absence of a <code>messages</code> property, the client can read MLS-related activities through the actor's
       <a href="https://www.w3.org/TR/activitypub/#inbox">inbox</a>
       property. This is a collection of all activities received by
-      the actor,including but not exclusive to activities related
-      to MLS. ActivityPub does not support push notifications, so
-      MLS-enabled ActivityPub clients have to periodically poll the
-      inbox collection for new activities.</p>
+      the actor, including but not exclusive to activities related
+      to MLS.</p>
+      <p>ActivityPub does not define a server-push mechanism for delivery. ActivityPub servers MAY implement <a href="https://swicg.github.io/activitypub-api/sse">Server-Sent Events for the ActivityPub API</a> to provide push notifications to clients.</p>
+      <p>MLS messages must be applied in forward chronological order to maintain the cryptographic properties of the ratchet tree. ActivityPub servers SHOULD implement the <a href="https://swicg.github.io/activitypub-api/seekitem">seekItem</a> feature for <code>messages</code> to let clients quickly go to the page of their last-read activity and read forward in time from there.</p>
       <p>Other activities in the object lifecycle, such as
       reactions, updates, or deletions, should be handled as part
       of the <a>application data</a> within MLS private messages,
@@ -1524,6 +1526,7 @@
   <section id="changelog">
     <h2>Changelog</h2>
     <ul>
+      <li>28 Jul 2026: Revised version including messages collection, server push, and seekItem.</li>
       <li>11 Jun 2025: Revised version focused on embedding binary
       MLS message objects in ActivityPub wrappers. Added
       application data model, security and privacy considerations;
