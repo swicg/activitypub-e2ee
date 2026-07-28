@@ -25,5 +25,9 @@
   "ciphersuite": {
     "@id": "mls:ciphersuite",
     "@type": "@id"
+  },
+  "messages": {
+    "@id": "mls:messages",
+    "@type": "@id"
   }
 }
