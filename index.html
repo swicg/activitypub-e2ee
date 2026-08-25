@@ -1750,6 +1750,12 @@
           padding</a> feature to mitigate this problem.
         </li>
       </ul>
+      <section id="metadata-topology">
+        <h4>Topology and group membership metadata</h4>
+        <p>In the <a>FullMesh</a> topology, as defined in this document, each group message is sent to every participant. Over time, a participant's server can observe many senders' identities, and can assemble a partial list of participants in a group.</p>
+        <p>Other topologies, such as a star topology, could reduce the exposure of sender identities from recipients' servers, at the cost of interfering with server-side blocking of messages.</p>
+        <p>For this specification, we erred on the side of supporting existing trust and safety tools like domain blocking over minimizing exposure of group participant identities in end-to-end encrypted messaging.</p>
+      </section>
     </section>
   </section>
   <section id="conformance"></section>
