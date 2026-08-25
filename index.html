@@ -194,13 +194,9 @@
             }
           </pre>
       </aside>
-      <p>Because managing group membership is an essential part of
-      the MLS protocol, delivery of MLS objects over the
-      ActivityPub network requires addressing all recipients
-      explicitly. Only actors can be recipients. Clients must not
-      address MLS messages to collections, such as to the actor's
-      <code>followers</code> collection or to the
-      <code>as:Public</code> collection. See <a href=
+      <p>This specification defines a full mesh routing topology for delivery of MLS objects over the ActivityPub network. Each delivery requires addressing all recipients explicitly. Other delivery topologies are possible, such as a tree or star, but are not specified here. The <a>topology</a> property of the <code>Welcome</code> message is an extension mechanism which can be used for declaring other delivery topologies.</p>
+      <p>Only actors can be recipients. Clients must not address MLS messages to collections, such as to the actor's <code>followers</code> collection or to the <code>as:Public</code> collection.</p>
+      <p>See <a href=
       "#privacy-considerations">Privacy considerations</a> for more
       details.</p>
       <p>Reading incoming messages is done through the actor's
@@ -870,11 +866,11 @@
   <section id="terms">
     <h2>Terms</h2>
     <p>These terms are defined in the MLS namespace for
-    ActivityPub. There are five new object types, and five new
-    properties.</p>
+    ActivityPub. There are six new object types, six new
+    properties, and one new identifier term.</p>
     <section id="types">
       <h3>Types</h3>
-      <p>There are five types defined in this context.</p>
+      <p>There are six types defined in this context.</p>
       <section id="PublicMessage">
         <h3><dfn class="export">PublicMessage</dfn></h3>
         <table>
@@ -1144,6 +1140,7 @@
                 MLSMessage</a> structure with a <a href=
                 "https://www.rfc-editor.org/rfc/rfc9420.html#section-12.4.3.1">
                 Welcome</a> wire type.</p>
+                <p>The <a>topology</a> property defines the ActivityPub routing topology within the messaging group. This document defines one topology, <a>FullMesh</a>, a full mesh in which each actor addresses every other participant in the group. If the topology is not specified, full mesh routing is the default.</p>
               </td>
             </tr>
             <tr>
@@ -1172,6 +1169,7 @@
             "encoding": "base64",
             "summary": "This is a welcome packet in MLS format.",
             "content": "[base64-encoded MLSMessage]",
+            "topology": "FullMesh",
             "generator": {
               "id": "https://client.example/actor",
               "type": "Application",
@@ -1181,10 +1179,53 @@
           </pre>
         </aside>
       </section>
+      <section id="Topology">
+        <h3><dfn class="export" data-dfn-type="class" data-lt="Topology" data-lt-noDefault>Topology</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#Topology</code><br>
+
+              <code>mls:Topology</code><br>
+              <code>Topology</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>A type that provides an identifier for distribution network topologies for group messages. One identifier, <a href="#fullmesh">FullMesh</a>, is defined in this document. Other topologies can be defined, and can be used in the <a>topology</a> property of a <a>Welcome</a> object.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Extends:</td>
+              <td><code>Object</code></td>
+            </tr>
+            <tr>
+              <td>Properties:</td>
+              <td>Inherited from <code>Object</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>A context document defining a theoretical tree topology.</p>
+          <pre class="json">
+            {
+              "@context": {
+                "ext": "https://extension.example/ns#",
+                "Tree": {
+                  "@id": "ext:Tree",
+                  "@type": "@id"
+                }
+              }
+            }
+          </pre>
+        </aside>
+      </section>
     </section>
     <section id="properties">
       <h3>Properties</h3>
-      <p>There are five properties defined in the namespace.</p>
+      <p>There are six properties defined in the namespace.</p>
       <section id="encoding">
         <h3><dfn class="export">encoding</dfn></h3>
         <table>
@@ -1485,6 +1526,122 @@
               "content": "[base64-encoded private message object]",
               "conversation": "https://social.example/user/example1/collections/18"
             }
+          </pre>
+        </aside>
+      </section>
+      <section id="topology">
+        <h3><dfn class="export">topology</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#topology</code><br>
+
+              <code>mls:topology</code><br>
+              <code>topology</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The <a>topology</a> property defines the ActivityPub routing topology within the messaging group. This document defines one topology, <a href="#fullmesh">mls:FullMesh</a>, a full mesh in which each actor addresses every other participant in the group for every message. If the topology is not specified, full mesh routing is the default.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Domain:</td>
+              <td>
+                <code>Welcome</code>
+              </td>
+            </tr>
+            <tr>
+              <td>Range:</td>
+              <td><a>Topology</a></td>
+            </tr>
+            <tr>
+              <td>Functional:</td>
+              <td><code>true</code></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An MLS welcome message with a <code>conversation</code>
+          property.</p>
+          <pre type="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/welcome/1",
+            "type": "Welcome",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "https://social.example/user/example1",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a welcome packet in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "topology": "FullMesh",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
+          </pre>
+        </aside>
+      </section>
+    </section>
+    <section id="identifiers">
+      <h3>Identifiers</h3>
+      <p>There is one identifier term defined in the namespace.</p>
+      <section id="fullmesh">
+        <h3><dfn class="export">FullMesh</dfn></h3>
+        <table>
+          <tbody>
+            <tr>
+              <td>URI:</td>
+              <td>
+              <code>https://purl.archive.org/socialweb/mls#FullMesh</code><br>
+
+              <code>mls:FullMesh</code><br>
+              <code>FullMesh</code></td>
+            </tr>
+            <tr>
+              <td>Notes:</td>
+              <td>
+                <p>The <code>FullMesh</code> identifier specifies a routing topology for MLS messages over the ActivityPub network. If a group has a <code>FullMesh</code> topology, actors send each outgoing MLS message, including <a>GroupInfo</a> messages, to every other participant in the group.</p>
+              </td>
+            </tr>
+            <tr>
+              <td>Type:</td>
+              <td><a>Topology</a></td>
+            </tr>
+          </tbody>
+        </table>
+        <aside class="example">
+          <p>An MLS welcome message with a <code>conversation</code>
+          property.</p>
+          <pre type="json">
+          {
+            "@context": [
+              "https://www.w3.org/ns/activitystreams",
+              "https://purl.archive.org/socialweb/mls"
+            ],
+            "id": "https://example.com/users/alyssa/welcome/1",
+            "type": "Welcome",
+            "attributedTo": "https://example.com/users/alyssa",
+            "to": "https://social.example/user/example1",
+            "mediaType": "message/mls",
+            "encoding": "base64",
+            "summary": "This is a welcome packet in MLS format.",
+            "content": "[base64-encoded MLSMessage]",
+            "topology": "FullMesh",
+            "generator": {
+              "id": "https://client.example/actor",
+              "type": "Application",
+              "name": "MLS-enabled ActivityPub client"
+            }
+          }
           </pre>
         </aside>
       </section>
